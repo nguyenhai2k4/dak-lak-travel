@@ -3,10 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Router } from 'express';
 import multer from 'multer';
-import { UPLOADS_DIR } from '../config.ts';
+import { SUPABASE_STORAGE_BUCKET, UPLOADS_DIR } from '../config.ts';
+import { getSupabaseAdmin, isUsingSupabase } from '../db/supabaseClient.ts';
 import { requireAuth } from '../services/core/auth.ts';
-
-fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const allowedMimeToExt: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -15,25 +14,14 @@ const allowedMimeToExt: Record<string, string> = {
   'image/gif': '.gif',
 };
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, UPLOADS_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = allowedMimeToExt[file.mimetype] || '.jpg';
-    const unique = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
-    cb(null, unique);
-  },
-});
-
 const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4MB (safe within Vercel 4.5MB body limit)
   fileFilter: (_req, file, cb) => {
     if (allowedMimeToExt[file.mimetype]) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ hỗ trợ định dạng ảnh JPG, PNG, WebP hoặc GIF (tối đa 5MB).'));
+      cb(new Error('Chỉ hỗ trợ định dạng ảnh JPG, PNG, WebP hoặc GIF (tối đa 4MB).'));
     }
   },
 });
@@ -41,7 +29,7 @@ const upload = multer({
 export const uploadRouter = Router();
 
 uploadRouter.post('/', requireAuth, (req, res) => {
-  upload.single('image')(req, res, (err) => {
+  upload.single('image')(req, res, async (err) => {
     if (err) {
       res.status(400).json({ error: err instanceof Error ? err.message : 'Upload thất bại.' });
       return;
@@ -50,9 +38,45 @@ uploadRouter.post('/', requireAuth, (req, res) => {
       res.status(400).json({ error: 'Không có tệp ảnh nào được tải lên.' });
       return;
     }
-    res.json({
-      url: `/uploads/${path.basename(req.file.filename)}`,
-      filename: req.file.filename,
-    });
+
+    const ext = allowedMimeToExt[req.file.mimetype] || '.jpg';
+    const filename = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+
+    try {
+      if (isUsingSupabase()) {
+        const supabase = getSupabaseAdmin();
+        const storagePath = `cms/${filename}`;
+        const { error: uploadErr } = await supabase.storage
+          .from(SUPABASE_STORAGE_BUCKET)
+          .upload(storagePath, req.file.buffer, {
+            contentType: req.file.mimetype,
+            cacheControl: '31536000',
+            upsert: false,
+          });
+
+        if (uploadErr) {
+          res.status(500).json({ error: `Không thể tải ảnh lên Supabase Storage: ${uploadErr.message}` });
+          return;
+        }
+
+        const { data } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(storagePath);
+        res.json({
+          url: data.publicUrl,
+          filename,
+        });
+        return;
+      }
+
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      fs.writeFileSync(path.join(UPLOADS_DIR, filename), req.file.buffer);
+      res.json({
+        url: `/uploads/${path.basename(filename)}`,
+        filename,
+      });
+    } catch (uploadError) {
+      res.status(500).json({
+        error: uploadError instanceof Error ? uploadError.message : 'Upload ảnh thất bại.',
+      });
+    }
   });
 });

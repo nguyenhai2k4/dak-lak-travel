@@ -477,14 +477,14 @@ export interface GroundedQaContext {
   }>;
 }
 
-export function loadGroundedQaContext(options?: {
+export async function loadGroundedQaContext(options?: {
   stays?: AccommodationRecord[];
   logistics?: LogisticsRecord[];
-}): GroundedQaContext {
+}): Promise<GroundedQaContext> {
   let rawStays: AccommodationRecord[] = options?.stays ?? [];
   if (!options?.stays) {
     try {
-      rawStays = listActiveStays();
+      rawStays = await listActiveStays();
     } catch {
       rawStays = [];
     }
@@ -493,7 +493,7 @@ export function loadGroundedQaContext(options?: {
   let rawLogistics: LogisticsRecord[] = options?.logistics ?? [];
   if (!options?.logistics) {
     try {
-      rawLogistics = listActiveLogistics();
+      rawLogistics = await listActiveLogistics();
     } catch {
       rawLogistics = [];
     }
@@ -501,7 +501,7 @@ export function loadGroundedQaContext(options?: {
 
   let places: GroundedQaContext['places'] = [];
   try {
-    places = listEnrichedPlaces().map((p) => ({
+    places = (await listEnrichedPlaces()).map((p) => ({
       title: p.title,
       location: p.location,
       category: p.meta.category,
@@ -844,7 +844,7 @@ function buildTavilyReferenceText(
  * Deterministic grounded Q&A answerer backed by active SQLite `stays`, `logistics`,
  * `dakLakPlaceDirectory`, `seasonsData`, active `currentState.days`, and optional Tavily snippets.
  */
-export function buildGroundedQaReplyDeterministic(
+export async function buildGroundedQaReplyDeterministic(
   req: AiChatRequest,
   options?: {
     stays?: AccommodationRecord[];
@@ -852,8 +852,8 @@ export function buildGroundedQaReplyDeterministic(
     tavilySnippets?: Array<{ title: string; url: string; content: string }>;
     tavilyAnswer?: string;
   }
-): string {
-  const ctx = loadGroundedQaContext(options);
+): Promise<string> {
+  const ctx = await loadGroundedQaContext(options);
   const lower = req.message.toLowerCase();
   const folded = foldVietnamese(req.message);
   const days = req.currentState.days;
@@ -1542,7 +1542,7 @@ export async function runPhase1Intake(
         deterministic.intake.intent === 'general_qa' ||
         isQuestionOrInfoRequest(req.message) ||
         isPrimaryAmenityOrInfoQuestion(req.message);
-      const groundedQaCtx = shouldInjectQaContext ? loadGroundedQaContext() : null;
+      const groundedQaCtx = shouldInjectQaContext ? await loadGroundedQaContext() : null;
       const tavilyQaCtx = shouldInjectQaContext
         ? await maybeFetchTavilyQaContext(req.message, {
             enableTavily: options?.enableTavily,

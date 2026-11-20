@@ -123,7 +123,7 @@ async function runPhase3BudgetImpl(
 
   const enrichedPlaces = options?.places
     ? options.places.map((p) => ({ ...p }))
-    : listEnrichedPlaces(AI_PRICE_TTL_HOURS, nowMs);
+    : await listEnrichedPlaces(AI_PRICE_TTL_HOURS, nowMs);
 
   const citations: AiCitation[] = [];
   const disclaimers: string[] = [];
@@ -175,7 +175,7 @@ async function runPhase3BudgetImpl(
         stale.isStale = false;
 
         if (!options?.skipSqliteUpsert) {
-          upsertPlacePrice({
+          await upsertPlacePrice({
             placeTitle: stale.title,
             areaCluster: stale.areaCluster,
             ticketVnd: refreshed.ticketVnd,

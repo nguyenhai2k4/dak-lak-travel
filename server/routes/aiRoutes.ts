@@ -296,10 +296,10 @@ aiRouter.post('/chat', async (req, res) => {
   }
 });
 
-aiRouter.post('/feedback', (req, res) => {
+aiRouter.post('/feedback', async (req, res) => {
   try {
     const body = (req.body || {}) as Partial<AiFeedbackRequest>;
-    const trace = submitAiTraceFeedback({
+    const trace = await submitAiTraceFeedback({
       traceId: typeof body.traceId === 'string' ? body.traceId : '',
       rating: body.rating as 1 | -1,
       comment: typeof body.comment === 'string' ? body.comment : undefined,
@@ -314,14 +314,14 @@ aiRouter.post('/feedback', (req, res) => {
   }
 });
 
-aiRouter.get('/traces', requireAuth, requireAdmin, (req, res) => {
+aiRouter.get('/traces', requireAuth, requireAdmin, async (req, res) => {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : 30;
     const offset = req.query.offset ? Number(req.query.offset) : 0;
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     const intent = typeof req.query.intent === 'string' ? req.query.intent : undefined;
 
-    const result = listAiTraces({ limit, offset, status, intent });
+    const result = await listAiTraces({ limit, offset, status, intent });
     res.json(result);
   } catch (err) {
     if (isServiceError(err)) {

@@ -59,7 +59,7 @@ const { synthesizeDeterministicPlan } = await import(
 );
 const { handleAiChat } = await import('../server/services/ai/aiChatbot.ts');
 
-ensureSeedData();
+await ensureSeedData();
 
 after(() => {
   closeDb();
@@ -90,7 +90,7 @@ async function buildBaselineContext(intake: IntakeState): Promise<{
       days: [],
     },
   };
-  const capacityPlan = runPhase2Capacity(intake);
+  const capacityPlan = await runPhase2Capacity(intake);
   const budgetResult = await runPhase3Budget(intake, capacityPlan, {
     forceSkipTavily: true,
     skipSqliteUpsert: true,
@@ -394,7 +394,7 @@ test('Golden fixture suite executes all 8 benchmark cases cleanly', async () => 
         preferredTransportModes: string[];
         forbiddenTier: string;
       };
-      const capacity = runPhase2Capacity(intake);
+      const capacity = await runPhase2Capacity(intake);
       const budget = await runPhase3Budget(intake, capacity, {
         forceSkipTavily: true,
         skipSqliteUpsert: true,
@@ -414,7 +414,7 @@ test('Golden fixture suite executes all 8 benchmark cases cleanly', async () => 
         mustIncludeAnyStop: string[];
         theme: string;
       };
-      const capacity = runPhase2Capacity(intake);
+      const capacity = await runPhase2Capacity(intake);
       assert.ok(
         capacity.seasonHeadline.includes(expected.seasonKeyword),
         `${id}: expected season ${expected.seasonKeyword}, got ${capacity.seasonHeadline}`
@@ -438,8 +438,8 @@ test('Golden fixture suite executes all 8 benchmark cases cleanly', async () => 
         soloMinMaxStopsPerDay: number;
         familyMinVehicleCapacity: number;
       };
-      const familyCap = runPhase2Capacity(familyIntake);
-      const soloCap = runPhase2Capacity(soloIntake);
+      const familyCap = await runPhase2Capacity(familyIntake);
+      const soloCap = await runPhase2Capacity(soloIntake);
       assert.ok(familyCap.maxStopsPerDay <= expected.familyMaxStopsPerDay);
       assert.ok(soloCap.maxStopsPerDay >= expected.soloMinMaxStopsPerDay);
       assert.ok(familyCap.selectedLogistics);
@@ -601,7 +601,7 @@ test('evaluateQaOutput validates general_qa replies, preserves negated elephant 
 
 test('aiTraceService and arizeTelemetry helpers persist, filter, and serialize safely', async () => {
   const ts = '2026-11-19T12:00:00.000Z';
-  saveAiTrace({
+  await saveAiTrace({
     traceId: 'trace-qa-1',
     lang: 'vi',
     userMessage: 'Thời tiết BMT hôm nay?',
@@ -612,7 +612,7 @@ test('aiTraceService and arizeTelemetry helpers persist, filter, and serialize s
     retryCount: 0,
     createdAt: ts,
   });
-  saveAiTrace({
+  await saveAiTrace({
     traceId: 'trace-plan-2',
     lang: 'vi',
     userMessage: 'Lên lịch 3N2Đ 8 triệu',
@@ -624,7 +624,7 @@ test('aiTraceService and arizeTelemetry helpers persist, filter, and serialize s
     createdAt: ts,
   });
 
-  const feedbackUpdated = submitAiTraceFeedback({
+  const feedbackUpdated = await submitAiTraceFeedback({
     traceId: 'trace-qa-1',
     rating: 1,
     comment: 'Trả lời rõ ràng',
@@ -633,7 +633,7 @@ test('aiTraceService and arizeTelemetry helpers persist, filter, and serialize s
   assert.equal(feedbackUpdated.feedbackComment, 'Trả lời rõ ràng');
 
   // Re-saving trace-qa-1 without feedback fields must preserve existing feedback
-  saveAiTrace({
+  await saveAiTrace({
     traceId: 'trace-qa-1',
     lang: 'vi',
     userMessage: 'Thời tiết BMT hôm nay?',
@@ -644,18 +644,18 @@ test('aiTraceService and arizeTelemetry helpers persist, filter, and serialize s
     retryCount: 0,
     createdAt: ts,
   });
-  const afterResave = getAiTraceById('trace-qa-1');
+  const afterResave = await getAiTraceById('trace-qa-1');
   assert.ok(afterResave);
   assert.equal(afterResave.feedbackRating, 1);
   assert.equal(afterResave.feedbackComment, 'Trả lời rõ ràng');
 
   // Filtering by 'plan_trip' normalizes to 'update_itinerary'
-  const planTraces = listAiTraces({ intent: 'plan_trip' });
+  const planTraces = await listAiTraces({ intent: 'plan_trip' });
   assert.ok(planTraces.traces.some((t) => t.traceId === 'trace-plan-2'));
   assert.ok(planTraces.traces.every((t) => t.intent === 'update_itinerary'));
 
   // Same-timestamp traces sort deterministically with newest rowid first
-  const allRecent = listAiTraces({ limit: 10 });
+  const allRecent = await listAiTraces({ limit: 10 });
   const idxPlan2 = allRecent.traces.findIndex((t) => t.traceId === 'trace-plan-2');
   const idxQa1 = allRecent.traces.findIndex((t) => t.traceId === 'trace-qa-1');
   assert.ok(idxPlan2 >= 0 && idxQa1 >= 0 && idxPlan2 < idxQa1);

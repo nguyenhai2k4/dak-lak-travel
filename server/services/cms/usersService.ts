@@ -1,4 +1,5 @@
-import { getDb } from '../../db/database.ts';
+import { getDb, isUsingSupabase } from '../../db/database.ts';
+import { getSupabaseAdmin } from '../../db/supabaseClient.ts';
 import { CmsUser, UserRole } from '../../../src/types/index.ts';
 import { AuthUser, hashPassword } from '../core/auth.ts';
 import { ServiceError } from '../core/errors.ts';
@@ -8,28 +9,70 @@ interface UserRow {
   email: string;
   display_name: string;
   role: UserRole;
-  is_active: number;
+  is_active: number | boolean;
   created_at: string;
+}
+
+export interface UserLoginRow extends UserRow {
+  password_hash: string;
+}
+
+function isActiveFlag(val: number | boolean): boolean {
+  return val === true || val === 1;
 }
 
 function mapUserRow(u: UserRow): CmsUser {
   return {
-    id: u.id,
+    id: Number(u.id),
     email: u.email,
     displayName: u.display_name,
     role: u.role,
-    isActive: u.is_active === 1,
+    isActive: isActiveFlag(u.is_active),
     createdAt: u.created_at,
   };
 }
 
-export function listUsers(admin: AuthUser): CmsUser[] {
+export async function findUserForLoginByEmail(email: string): Promise<UserLoginRow | null> {
+  const cleaned = email.trim().toLowerCase();
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, display_name, password_hash, role, is_active, created_at')
+      .eq('email', cleaned)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Supabase login query failed: ${error.message}`);
+    }
+    return (data as UserLoginRow | null) ?? null;
+  }
+
+  const db = getDb();
+  const row = db
+    .prepare(
+      'SELECT id, email, display_name, password_hash, role, is_active, created_at FROM users WHERE email = ?'
+    )
+    .get(cleaned) as UserLoginRow | undefined;
+  return row ?? null;
+}
+
+export async function listUsers(admin: AuthUser): Promise<CmsUser[]> {
   if (admin.role !== 'admin') {
     throw new ServiceError(
       403,
       'FORBIDDEN',
       'Chỉ quản trị viên (Admin) mới có quyền thực hiện thao tác này.'
     );
+  }
+
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, display_name, role, is_active, created_at')
+      .order('id', { ascending: true });
+    if (error) throw new Error(`Supabase listUsers failed: ${error.message}`);
+    return ((data || []) as UserRow[]).map(mapUserRow);
   }
 
   const db = getDb();
@@ -40,23 +83,37 @@ export function listUsers(admin: AuthUser): CmsUser[] {
   return rows.map(mapUserRow);
 }
 
-export function findAuthUserByEmail(email: string): AuthUser | null {
+export async function findAuthUserByEmail(email: string): Promise<AuthUser | null> {
+  const cleaned = email.trim().toLowerCase();
+
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, display_name, role, is_active')
+      .eq('email', cleaned)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const row = data as UserRow;
+    if (!isActiveFlag(row.is_active)) return null;
+    return {
+      id: Number(row.id),
+      email: row.email,
+      displayName: row.display_name,
+      role: row.role,
+      isActive: true,
+    };
+  }
+
   const db = getDb();
   const row = db
     .prepare(
       'SELECT id, email, display_name, role, is_active FROM users WHERE email = ? LIMIT 1'
     )
-    .get(email.trim().toLowerCase()) as
-    | {
-        id: number;
-        email: string;
-        display_name: string;
-        role: UserRole;
-        is_active: number;
-      }
-    | undefined;
+    .get(cleaned) as UserRow | undefined;
 
-  if (!row || row.is_active !== 1) return null;
+  if (!row || !isActiveFlag(row.is_active)) return null;
   return {
     id: row.id,
     email: row.email,
@@ -66,10 +123,10 @@ export function findAuthUserByEmail(email: string): AuthUser | null {
   };
 }
 
-export function createUser(
+export async function createUser(
   admin: AuthUser,
   body: { email?: unknown; displayName?: unknown; password?: unknown; role?: unknown }
-): CmsUser {
+): Promise<CmsUser> {
   if (admin.role !== 'admin') {
     throw new ServiceError(
       403,
@@ -91,13 +148,44 @@ export function createUser(
     );
   }
 
+  const now = new Date().toISOString();
+
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data: dup } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+    if (dup) {
+      throw new ServiceError(409, 'CONFLICT', 'Email này đã tồn tại trong hệ thống.');
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        email,
+        display_name: displayName,
+        password_hash: hashPassword(password),
+        role,
+        is_active: true,
+        created_at: now,
+      })
+      .select('id, email, display_name, role, is_active, created_at')
+      .single();
+
+    if (error || !data) {
+      throw new Error(`Supabase createUser failed: ${error?.message || 'Unknown error'}`);
+    }
+    return mapUserRow(data as UserRow);
+  }
+
   const db = getDb();
   const dup = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
   if (dup) {
     throw new ServiceError(409, 'CONFLICT', 'Email này đã tồn tại trong hệ thống.');
   }
 
-  const now = new Date().toISOString();
   const result = db
     .prepare(
       `INSERT INTO users (email, display_name, password_hash, role, is_active, created_at)
@@ -115,11 +203,11 @@ export function createUser(
   };
 }
 
-export function updateUser(
+export async function updateUser(
   admin: AuthUser,
   id: number,
   body: { isActive?: unknown; role?: unknown }
-): CmsUser {
+): Promise<CmsUser> {
   if (admin.role !== 'admin') {
     throw new ServiceError(
       403,
@@ -129,6 +217,46 @@ export function updateUser(
   }
   if (!Number.isInteger(id)) {
     throw new ServiceError(400, 'VALIDATION_ERROR', 'ID tài khoản không hợp lệ.');
+  }
+
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data: existing, error: fetchErr } = await supabase
+      .from('users')
+      .select('id, email, display_name, role, is_active, created_at')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchErr) throw new Error(`Supabase updateUser fetch failed: ${fetchErr.message}`);
+    if (!existing) {
+      throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy tài khoản.');
+    }
+
+    if (admin.id === id && body.isActive === false) {
+      throw new ServiceError(
+        400,
+        'VALIDATION_ERROR',
+        'Không thể tự khóa tài khoản đang đăng nhập.'
+      );
+    }
+
+    const existingRow = existing as UserRow;
+    const nextActive =
+      typeof body.isActive === 'boolean' ? body.isActive : isActiveFlag(existingRow.is_active);
+    const nextRole: UserRole =
+      body.role === 'admin' || body.role === 'writer' ? body.role : existingRow.role;
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('users')
+      .update({ is_active: nextActive, role: nextRole })
+      .eq('id', id)
+      .select('id, email, display_name, role, is_active, created_at')
+      .single();
+
+    if (updateErr || !updated) {
+      throw new Error(`Supabase updateUser failed: ${updateErr?.message || 'Unknown error'}`);
+    }
+    return mapUserRow(updated as UserRow);
   }
 
   const db = getDb();
@@ -145,7 +273,13 @@ export function updateUser(
   }
 
   const nextActive =
-    typeof body.isActive === 'boolean' ? (body.isActive ? 1 : 0) : existing.is_active;
+    typeof body.isActive === 'boolean'
+      ? body.isActive
+        ? 1
+        : 0
+      : isActiveFlag(existing.is_active)
+        ? 1
+        : 0;
   const nextRole: UserRole =
     body.role === 'admin' || body.role === 'writer' ? body.role : existing.role;
 

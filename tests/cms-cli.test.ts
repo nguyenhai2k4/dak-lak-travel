@@ -26,7 +26,7 @@ const { adminUsersRouter } = await import('../server/routes/adminUsersRoutes.ts'
 const { uploadRouter } = await import('../server/routes/uploadRoutes.ts');
 const { runCli } = await import('../cli/index.ts');
 
-ensureSeedData();
+await ensureSeedData();
 
 function createTestApp() {
   const app = express();

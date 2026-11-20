@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
 import { NextFunction, Request, Response } from 'express';
 import { SESSION_COOKIE_NAME, SESSION_TTL_DAYS } from '../../config.ts';
-import { getDb } from '../../db/database.ts';
+import { getDb, isUsingSupabase } from '../../db/database.ts';
+import { getSupabaseAdmin } from '../../db/supabaseClient.ts';
 import { UserRole } from '../../../src/types/index.ts';
 
 export interface AuthUser {
@@ -55,18 +56,41 @@ export function parseCookies(cookieHeader?: string): Record<string, string> {
   return result;
 }
 
-export function createSession(userId: number): { token: string; expiresAt: string } {
-  const db = getDb();
+export async function createSession(userId: number): Promise<{ token: string; expiresAt: string }> {
   const token = crypto.randomBytes(32).toString('hex');
   const now = new Date();
   const expires = new Date(now.getTime() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+  const expiresAt = expires.toISOString();
+  const createdAt = now.toISOString();
+
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from('sessions').insert({
+      token,
+      user_id: userId,
+      expires_at: expiresAt,
+      created_at: createdAt,
+    });
+    if (error) {
+      throw new Error(`Failed to create session in Supabase: ${error.message}`);
+    }
+    return { token, expiresAt };
+  }
+
+  const db = getDb();
   db.prepare(
     'INSERT INTO sessions (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)'
-  ).run(token, userId, expires.toISOString(), now.toISOString());
-  return { token, expiresAt: expires.toISOString() };
+  ).run(token, userId, expiresAt, createdAt);
+  return { token, expiresAt };
 }
 
-export function deleteSession(token: string): void {
+export async function deleteSession(token: string): Promise<void> {
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    await supabase.from('sessions').delete().eq('token', token);
+    return;
+  }
+
   const db = getDb();
   db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
 }
@@ -89,9 +113,47 @@ export function extractSessionTokenFromRequest(req: Request): string | null {
   return cookies[SESSION_COOKIE_NAME] || null;
 }
 
-export function getAuthUserFromRequest(req: Request): AuthUser | null {
+export async function getAuthUserFromRequest(req: Request): Promise<AuthUser | null> {
   const token = extractSessionTokenFromRequest(req);
   if (!token) return null;
+
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data: sessionRow, error } = await supabase
+      .from('sessions')
+      .select(
+        'token, expires_at, user:users(id, email, display_name, role, is_active)'
+      )
+      .eq('token', token)
+      .maybeSingle();
+
+    if (error || !sessionRow) return null;
+
+    const rawUser = Array.isArray(sessionRow.user) ? sessionRow.user[0] : sessionRow.user;
+    if (!rawUser) return null;
+
+    const userRow = rawUser as {
+      id: number;
+      email: string;
+      display_name: string;
+      role: UserRole;
+      is_active: boolean | number;
+    };
+    const isActive = userRow.is_active === true || userRow.is_active === 1;
+
+    if (new Date(sessionRow.expires_at).getTime() < Date.now() || !isActive) {
+      await supabase.from('sessions').delete().eq('token', token);
+      return null;
+    }
+
+    return {
+      id: Number(userRow.id),
+      email: userRow.email,
+      displayName: userRow.display_name,
+      role: userRow.role,
+      isActive: true,
+    };
+  }
 
   const db = getDb();
   const row = db
@@ -127,19 +189,35 @@ export function getAuthUserFromRequest(req: Request): AuthUser | null {
   };
 }
 
-export function attachOptionalAuth(req: Request, _res: Response, next: NextFunction): void {
-  req.authUser = getAuthUserFromRequest(req) || undefined;
-  next();
+export async function attachOptionalAuth(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    req.authUser = (await getAuthUserFromRequest(req)) || undefined;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const user = getAuthUserFromRequest(req);
-  if (!user) {
-    res.status(401).json({ error: 'Vui lòng đăng nhập để truy cập cổng quản trị.' });
-    return;
+export async function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = await getAuthUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ error: 'Vui lòng đăng nhập để truy cập cổng quản trị.' });
+      return;
+    }
+    req.authUser = user;
+    next();
+  } catch (err) {
+    next(err);
   }
-  req.authUser = user;
-  next();
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {

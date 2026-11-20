@@ -20,7 +20,7 @@ export interface Phase4PurposeOptions {
     themeKey?: IntakeState['mainPurpose'];
     locations?: string[];
     limit?: number;
-  }) => CmsPostPublic[];
+  }) => CmsPostPublic[] | Promise<CmsPostPublic[]>;
   fetchFn?: typeof fetch;
 }
 
@@ -376,7 +376,7 @@ export async function runPhase4Purpose(
             });
           },
         },
-        () => queryPosts(queryParams)
+        async () => await queryPosts(queryParams)
       );
 
       const relevantPosts = posts.map((p) => ({

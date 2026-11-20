@@ -6,40 +6,40 @@ import { createUser, listUsers, updateUser } from '../services/cms/usersService.
 export const adminUsersRouter = Router();
 adminUsersRouter.use(requireAuth, requireAdmin);
 
-adminUsersRouter.get('/', (req, res) => {
+adminUsersRouter.get('/', async (req, res, next) => {
   try {
-    res.json({ users: listUsers(req.authUser!) });
+    res.json({ users: await listUsers(req.authUser!) });
   } catch (err) {
     if (isServiceError(err)) {
       res.status(err.statusCode).json({ error: err.message, code: err.code });
       return;
     }
-    throw err;
+    next(err);
   }
 });
 
-adminUsersRouter.post('/', (req, res) => {
+adminUsersRouter.post('/', async (req, res, next) => {
   try {
-    const user = createUser(req.authUser!, req.body || {});
+    const user = await createUser(req.authUser!, req.body || {});
     res.status(201).json({ user });
   } catch (err) {
     if (isServiceError(err)) {
       res.status(err.statusCode).json({ error: err.message, code: err.code });
       return;
     }
-    throw err;
+    next(err);
   }
 });
 
-adminUsersRouter.patch('/:id', (req, res) => {
+adminUsersRouter.patch('/:id', async (req, res, next) => {
   try {
-    const user = updateUser(req.authUser!, Number(req.params.id), req.body || {});
+    const user = await updateUser(req.authUser!, Number(req.params.id), req.body || {});
     res.json({ user });
   } catch (err) {
     if (isServiceError(err)) {
       res.status(err.statusCode).json({ error: err.message, code: err.code });
       return;
     }
-    throw err;
+    next(err);
   }
 });

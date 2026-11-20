@@ -1354,10 +1354,10 @@ async function handleSwapLogisticsFollowUp(
 
       const stays =
         options?.stays ??
-        listActiveStays({ travelersCount, companionType: req.currentState.companion });
+        (await listActiveStays({ travelersCount, companionType: req.currentState.companion }));
       const logistics =
         options?.logistics ??
-        listActiveLogistics({ travelersCount, companionType: req.currentState.companion });
+        (await listActiveLogistics({ travelersCount, companionType: req.currentState.companion }));
 
       const mentionsStay =
         /(khách sạn|homestay|resort|bungalow|chỗ ở|nơi ở|lưu trú|nghỉ đêm|ngủ ở|hồ lắk|ea kao|ako dhông|mường thanh|stay|hotel|accommodation)/i.test(
@@ -1598,12 +1598,12 @@ async function handleCurrentTripQaFollowUp(
       formatOutput: (res) => ({ reply: res.reply, provider: res.provider }),
     },
     async () => {
-      const groundedCtx = loadGroundedQaContext({
+      const groundedCtx = await loadGroundedQaContext({
         stays: options?.stays,
         logistics: options?.logistics,
       });
       const tavilyCtx = await maybeFetchTavilyQaContext(req.message);
-      const deterministicReply = buildGroundedQaReplyDeterministic(req, {
+      const deterministicReply = await buildGroundedQaReplyDeterministic(req, {
         stays: options?.stays,
         logistics: options?.logistics,
         tavilySnippets: tavilyCtx.snippets,

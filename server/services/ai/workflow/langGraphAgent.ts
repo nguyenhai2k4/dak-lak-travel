@@ -442,7 +442,7 @@ export function createDakLakLangGraphTools(
           }),
         },
         async () => {
-          const grounded = loadGroundedQaContext({
+          const grounded = await loadGroundedQaContext({
             stays: opts?.stays,
             logistics: opts?.logistics,
           });
@@ -451,7 +451,7 @@ export function createDakLakLangGraphTools(
 
           let relevantPosts: CmsPostPublic[] = [];
           try {
-            relevantPosts = queryRelevantPublishedPosts({
+            relevantPosts = await queryRelevantPublishedPosts({
               lang,
               themeKey,
               limit: 3,
@@ -680,7 +680,7 @@ export function createDakLakLangGraphTools(
             };
           }
 
-          const capacityPlan = runPhase2Capacity(effectiveIntake, {
+          const capacityPlan = await runPhase2Capacity(effectiveIntake, {
             stays: opts?.stays,
             logistics: opts?.logistics,
             lang: effectiveReq.lang,
@@ -1160,7 +1160,7 @@ export function buildDakLakLangGraph(options?: LangGraphRunOptions) {
       const effectiveTavilyCitations = tavilyContext?.citations || phase1Output?.citations || [];
       const cmsCitations = localContext?.citations || [];
 
-      const deterministicReply = buildGroundedQaReplyDeterministic(req, {
+      const deterministicReply = await buildGroundedQaReplyDeterministic(req, {
         stays: options?.stays,
         logistics: options?.logistics,
         tavilySnippets: effectiveSnippets,

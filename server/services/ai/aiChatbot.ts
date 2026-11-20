@@ -70,9 +70,9 @@ function detectPreferencesFallback(
   };
 }
 
-function buildCmsCitationsForQa(lang: Language, themeKey: ThemeType): AiCitation[] {
+async function buildCmsCitationsForQa(lang: Language, themeKey: ThemeType): Promise<AiCitation[]> {
   try {
-    const posts = queryRelevantPublishedPosts({ lang, themeKey, limit: 3 });
+    const posts = await queryRelevantPublishedPosts({ lang, themeKey, limit: 3 });
     return posts.map((p) => ({
       title: p.title,
       url: `/blog/${p.slug}`,
@@ -84,9 +84,9 @@ function buildCmsCitationsForQa(lang: Language, themeKey: ThemeType): AiCitation
   }
 }
 
-function persistTraceSafely(record: TraceRecord): void {
+async function persistTraceSafely(record: TraceRecord): Promise<void> {
   try {
-    saveAiTrace(record);
+    await saveAiTrace(record);
   } catch (err) {
     console.warn(
       '[AI Trace] Failed to persist trace:',
@@ -98,7 +98,10 @@ function persistTraceSafely(record: TraceRecord): void {
 /**
  * Local fallback chat handler used when `GEMINI_API_KEY` is missing or Gemini requests fail.
  */
-export function runLocalFallbackChat(req: AiChatRequest, reason?: string): AiChatResponse {
+export async function runLocalFallbackChat(
+  req: AiChatRequest,
+  reason?: string
+): Promise<AiChatResponse> {
   const lower = req.message.toLowerCase();
   const provider = reason ? `local-fallback (${reason})` : 'local-fallback';
   const hasExplicitPlannerVerb =
@@ -114,7 +117,8 @@ export function runLocalFallbackChat(req: AiChatRequest, reason?: string): AiCha
     );
 
   if (looksLikeGeneralQuestion) {
-    const reply = buildGroundedQaReplyDeterministic(req);
+    const reply = await buildGroundedQaReplyDeterministic(req);
+    const citations = await buildCmsCitationsForQa(req.lang, req.currentState.theme);
 
     return {
       intent: 'general_qa',
@@ -129,7 +133,7 @@ export function runLocalFallbackChat(req: AiChatRequest, reason?: string): AiCha
       resetItineraryToTheme: false,
       stopOperations: [],
       status: 'completed',
-      citations: buildCmsCitationsForQa(req.lang, req.currentState.theme),
+      citations,
       provider,
       engine: 'langgraph',
       ...(req.draftIntake
@@ -229,7 +233,7 @@ export async function handleAiChat(req: AiChatRequest): Promise<AiChatResponse> 
           const finalResponse = await runLangGraphChat(req, { traceId, sessionId });
           const meta = getLangGraphTraceMetadata(traceId);
 
-          persistTraceSafely({
+          await persistTraceSafely({
             traceId,
             lang: req.lang,
             userMessage: req.message,
@@ -253,14 +257,14 @@ export async function handleAiChat(req: AiChatRequest): Promise<AiChatResponse> 
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Unknown AI workflow error';
           console.warn('[AI Chatbot] LangGraph pipeline failed, using local fallback:', message);
-          const fallback = runLocalFallbackChat(req, 'fallback');
+          const fallback = await runLocalFallbackChat(req, 'fallback');
           fallback.traceId = traceId;
           fallback.status = 'completed';
           fallback.engine = 'langgraph';
           fallback.toolsUsed = fallback.toolsUsed || [];
           fallback.graphNodesVisited = fallback.graphNodesVisited || ['fallback'];
 
-          persistTraceSafely({
+          await persistTraceSafely({
             traceId,
             lang: req.lang,
             userMessage: req.message,

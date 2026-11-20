@@ -1,13 +1,15 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { DATA_DIR, DB_PATH, UPLOADS_DIR } from '../config.ts';
+import { DB_PATH, UPLOADS_DIR } from '../config.ts';
+export { isUsingSupabase } from './supabaseClient.ts';
 
 let dbInstance: DatabaseSync | null = null;
 
 export function getDb(): DatabaseSync {
   if (dbInstance) return dbInstance;
 
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
   const db = new DatabaseSync(DB_PATH);

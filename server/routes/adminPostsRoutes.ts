@@ -1,4 +1,4 @@
-import { Request, Response, Router } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 import { requireAdmin, requireAuth } from '../services/core/auth.ts';
 import { isServiceError } from '../services/core/errors.ts';
 import {
@@ -18,26 +18,26 @@ import {
 export const adminPostsRouter = Router();
 adminPostsRouter.use(requireAuth);
 
-function handleRouteError(res: Response, err: unknown): void {
+function handleRouteError(res: Response, next: NextFunction, err: unknown): void {
   if (isServiceError(err)) {
     res.status(err.statusCode).json({ error: err.message, code: err.code });
     return;
   }
-  throw err;
+  next(err);
 }
 
-adminPostsRouter.get('/context', (req: Request, res: Response) => {
+adminPostsRouter.get('/context', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const section = typeof req.query.section === 'string' ? req.query.section : undefined;
-    res.json(getCmsStatsAndContext(section));
+    res.json(await getCmsStatsAndContext(section));
   } catch (err) {
-    handleRouteError(res, err);
+    handleRouteError(res, next, err);
   }
 });
 
-adminPostsRouter.get('/', (req: Request, res: Response) => {
+adminPostsRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const posts = listAdminPosts(req.authUser!, {
+    const posts = await listAdminPosts(req.authUser!, {
       section: typeof req.query.section === 'string' ? req.query.section : undefined,
       status: typeof req.query.status === 'string' ? req.query.status : undefined,
       slug: typeof req.query.slug === 'string' ? req.query.slug : undefined,
@@ -45,29 +45,29 @@ adminPostsRouter.get('/', (req: Request, res: Response) => {
     });
     res.json({ posts });
   } catch (err) {
-    handleRouteError(res, err);
+    handleRouteError(res, next, err);
   }
 });
 
-adminPostsRouter.get('/:id', (req: Request, res: Response) => {
+adminPostsRouter.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const post = getAdminPostByIdOrSlug(req.authUser!, String(req.params.id));
+    const post = await getAdminPostByIdOrSlug(req.authUser!, String(req.params.id));
     res.json({ post });
   } catch (err) {
-    handleRouteError(res, err);
+    handleRouteError(res, next, err);
   }
 });
 
-adminPostsRouter.post('/', async (req: Request, res: Response) => {
+adminPostsRouter.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const post = await createAdminPost(req.authUser!, (req.body || {}) as Record<string, unknown>);
     res.status(201).json({ post });
   } catch (err) {
-    handleRouteError(res, err);
+    handleRouteError(res, next, err);
   }
 });
 
-adminPostsRouter.put('/:id', async (req: Request, res: Response) => {
+adminPostsRouter.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const post = await updateAdminPost(
       req.authUser!,
@@ -76,69 +76,84 @@ adminPostsRouter.put('/:id', async (req: Request, res: Response) => {
     );
     res.json({ post });
   } catch (err) {
-    handleRouteError(res, err);
+    handleRouteError(res, next, err);
   }
 });
 
-adminPostsRouter.post('/:id/submit', (req: Request, res: Response) => {
+adminPostsRouter.post('/:id/submit', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const post = submitAdminPost(req.authUser!, Number(req.params.id));
+    const post = await submitAdminPost(req.authUser!, Number(req.params.id));
     res.json({ post });
   } catch (err) {
-    handleRouteError(res, err);
+    handleRouteError(res, next, err);
   }
 });
 
-adminPostsRouter.post('/:id/review', requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const post = await reviewAdminPost(
-      req.authUser!,
-      Number(req.params.id),
-      String(req.body?.action || ''),
-      String(req.body?.reviewNote || '')
-    );
-    res.json({ post });
-  } catch (err) {
-    handleRouteError(res, err);
+adminPostsRouter.post(
+  '/:id/review',
+  requireAdmin,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const post = await reviewAdminPost(
+        req.authUser!,
+        Number(req.params.id),
+        String(req.body?.action || ''),
+        String(req.body?.reviewNote || '')
+      );
+      res.json({ post });
+    } catch (err) {
+      handleRouteError(res, next, err);
+    }
   }
-});
+);
 
-adminPostsRouter.post('/:id/retranslate', requireAdmin, async (req: Request, res: Response) => {
-  try {
-    const post = await retranslateAdminPost(req.authUser!, Number(req.params.id));
-    res.json({ post });
-  } catch (err) {
-    handleRouteError(res, err);
+adminPostsRouter.post(
+  '/:id/retranslate',
+  requireAdmin,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const post = await retranslateAdminPost(req.authUser!, Number(req.params.id));
+      res.json({ post });
+    } catch (err) {
+      handleRouteError(res, next, err);
+    }
   }
-});
+);
 
-adminPostsRouter.post('/:id/translation', async (req: Request, res: Response) => {
-  try {
-    const post = await saveCustomTranslation(
-      req.authUser!,
-      Number(req.params.id),
-      (req.body || {}) as Record<string, unknown>
-    );
-    res.json({ post });
-  } catch (err) {
-    handleRouteError(res, err);
+adminPostsRouter.post(
+  '/:id/translation',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const post = await saveCustomTranslation(
+        req.authUser!,
+        Number(req.params.id),
+        (req.body || {}) as Record<string, unknown>
+      );
+      res.json({ post });
+    } catch (err) {
+      handleRouteError(res, next, err);
+    }
   }
-});
+);
 
-adminPostsRouter.patch('/reorder', requireAdmin, (req: Request, res: Response) => {
+adminPostsRouter.patch(
+  '/reorder',
+  requireAdmin,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await reorderAdminPosts(req.authUser!, req.body?.section, req.body?.orderedIds);
+      res.json({ ok: true });
+    } catch (err) {
+      handleRouteError(res, next, err);
+    }
+  }
+);
+
+adminPostsRouter.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    reorderAdminPosts(req.authUser!, req.body?.section, req.body?.orderedIds);
+    await deleteAdminPost(req.authUser!, Number(req.params.id));
     res.json({ ok: true });
   } catch (err) {
-    handleRouteError(res, err);
-  }
-});
-
-adminPostsRouter.delete('/:id', (req: Request, res: Response) => {
-  try {
-    deleteAdminPost(req.authUser!, Number(req.params.id));
-    res.json({ ok: true });
-  } catch (err) {
-    handleRouteError(res, err);
+    handleRouteError(res, next, err);
   }
 });

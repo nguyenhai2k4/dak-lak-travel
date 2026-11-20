@@ -85,14 +85,14 @@ function computePacing(
  * Phase 2 (Deterministic): resolves season, pacing caps (`maxStopsTotal` <= 5 for 2 days,
  * relaxed for families), and filters stays & logistics by group capacity and `AI_PRICE_POLICY`.
  */
-export function runPhase2Capacity(
+export async function runPhase2Capacity(
   intake: IntakeState,
   overrides?: {
     stays?: AccommodationRecord[];
     logistics?: LogisticsRecord[];
     lang?: Language;
   }
-): CapacityAndLogisticsPlan {
+): Promise<CapacityAndLogisticsPlan> {
   const isEn = overrides?.lang === 'en';
   const dayCount = resolveDayCount(intake.duration);
   const companionType: CompanionType = intake.companionType || 'couple';
@@ -119,9 +119,9 @@ export function runPhase2Capacity(
   const transitCapVnd = (estimatedBudgetVnd * AI_PRICE_POLICY.transitShareCapPct) / 100;
 
   const allStays =
-    overrides?.stays ?? listActiveStays({ travelersCount, companionType });
+    overrides?.stays ?? (await listActiveStays({ travelersCount, companionType }));
   const allLogistics =
-    overrides?.logistics ?? listActiveLogistics({ travelersCount, companionType });
+    overrides?.logistics ?? (await listActiveLogistics({ travelersCount, companionType }));
 
   const notes: string[] = [];
 

@@ -52,7 +52,7 @@ const {
   runLangGraphChat,
 } = await import('../server/services/ai/workflow/langGraphAgent.ts');
 
-ensureSeedData();
+await ensureSeedData();
 
 after(() => {
   closeDb();
@@ -107,7 +107,7 @@ test('Phase 1 deterministic intake flags missing fields, detects general Q&A, an
   assert.equal(complete.intake.mainPurpose, 'coffee');
 });
 
-test('Phase 2 capacity enforces stop caps, seasonal mapping, and family vs solo logistics', () => {
+test('Phase 2 capacity enforces stop caps, seasonal mapping, and family vs solo logistics', async () => {
   const familyIntake: IntakeState = {
     intent: 'plan_trip',
     travelersCount: 5,
@@ -123,7 +123,7 @@ test('Phase 2 capacity enforces stop caps, seasonal mapping, and family vs solo 
     rawUserGoal: 'Đi thác tháng 8',
   };
 
-  const familyPlan = runPhase2Capacity(familyIntake);
+  const familyPlan = await runPhase2Capacity(familyIntake);
   assert.equal(familyPlan.dayCount, 3);
   assert.equal(familyPlan.maxStopsPerDay, 2);
   assert.equal(familyPlan.maxStopsTotal, 6);
@@ -150,7 +150,7 @@ test('Phase 2 capacity enforces stop caps, seasonal mapping, and family vs solo 
     rawUserGoal: 'Độc hành săn mùa thu hoạch cà phê',
   };
 
-  const soloPlan = runPhase2Capacity(solo2Days);
+  const soloPlan = await runPhase2Capacity(solo2Days);
   assert.equal(soloPlan.dayCount, 2);
   assert.ok(soloPlan.maxStopsTotal <= 5, `2-day cap must be <= 5, got ${soloPlan.maxStopsTotal}`);
   assert.equal(soloPlan.maxStopsPerDay, 3);
@@ -189,7 +189,7 @@ test('Phase 3 budget refreshes stale places via mocked Tavily, skips fresh cache
     missingFields: [],
     needsClarification: false,
   };
-  const capacityPlan = runPhase2Capacity(intake);
+  const capacityPlan = await runPhase2Capacity(intake);
 
   const tavilyCalls: string[] = [];
   const mockTavilyLookup = async (placeTitle: string) => {
@@ -214,7 +214,7 @@ test('Phase 3 budget refreshes stale places via mocked Tavily, skips fresh cache
   };
 
   // Build synthetic enriched places: 1 fresh cache, 1 stale cache, 1 prohibitively expensive
-  const basePlaces = listEnrichedPlaces(168, nowMs).slice(0, 3);
+  const basePlaces = (await listEnrichedPlaces(168, nowMs)).slice(0, 3);
   basePlaces[0] = {
     ...basePlaces[0],
     title: 'Làng Cà phê Trung Nguyên',
@@ -273,7 +273,7 @@ test('Phase 3 budget refreshes stale places via mocked Tavily, skips fresh cache
   assert.ok(budgetResult.estimatedTotalVnd <= 2000000);
 
   // Verify SQLite upsert + fresh read roundtrip
-  upsertPlacePrice({
+  await upsertPlacePrice({
     placeTitle: 'Bảo tàng Thế giới Cà phê',
     areaCluster: 'BMT',
     ticketVnd: 155000,
@@ -283,7 +283,7 @@ test('Phase 3 budget refreshes stale places via mocked Tavily, skips fresh cache
     sourceUrl: 'https://daklak.example.com/gia-ve',
     fetchedAt: freshIso,
   });
-  const afterUpsert = listEnrichedPlaces(168, nowMs).find(
+  const afterUpsert = (await listEnrichedPlaces(168, nowMs)).find(
     (p) => p.title === 'Bảo tàng Thế giới Cà phê'
   );
   assert.ok(afterUpsert);
@@ -345,7 +345,7 @@ test('Phase 4 purpose selection applies seasonal boosts, cluster coherence, and 
     needsClarification: false,
   };
 
-  const capacityPlan = runPhase2Capacity(augNatureIntake);
+  const capacityPlan = await runPhase2Capacity(augNatureIntake);
   const budgetResult = await runPhase3Budget(augNatureIntake, capacityPlan, {
     forceSkipTavily: true,
     skipSqliteUpsert: true,
@@ -430,7 +430,7 @@ test('External and general Q&A queries fetch Tavily context and ground replies w
   assert.ok(tavilyCtx.citations.length >= 1);
   assert.equal(tavilyCtx.citations[0].url, 'https://daklak.example.com/chua-sac-tu-khai-doan');
 
-  const reply = buildGroundedQaReplyDeterministic(makeChatReq(externalQuery), {
+  const reply = await buildGroundedQaReplyDeterministic(makeChatReq(externalQuery), {
     tavilySnippets: tavilyCtx.snippets,
     ...(typeof (tavilyCtx as { answer?: string }).answer === 'string'
       ? { tavilyAnswer: (tavilyCtx as { answer?: string }).answer }
@@ -492,7 +492,7 @@ test('External and general Q&A queries fetch Tavily context and ground replies w
     'Lễ hội Cồng Chiêng tại Buôn Cổ Ako Dhông có diễn ra vào ngày 20/11/2026 không?',
     'en'
   );
-  const akoDhongReply = buildGroundedQaReplyDeterministic(akoDhongFestReq, {
+  const akoDhongReply = await buildGroundedQaReplyDeterministic(akoDhongFestReq, {
     tavilyAnswer:
       'The sources indicate that the Cồng Chiêng festival is organized in various ethnic groups in the Central Highlands, including in Buôn Cổ Ako Dhông.',
     tavilySnippets: [

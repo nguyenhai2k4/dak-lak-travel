@@ -35,7 +35,7 @@ const {
 } = await import('../server/services/ai/workflow/followUpRouter.ts');
 const { handleAiChat } = await import('../server/services/ai/aiChatbot.ts');
 
-ensureSeedData();
+await ensureSeedData();
 
 after(() => {
   closeDb();

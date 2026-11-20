@@ -1,5 +1,6 @@
 import { AI_PRICE_TTL_HOURS } from '../../config.ts';
-import { getDb } from '../../db/database.ts';
+import { getDb, isUsingSupabase } from '../../db/database.ts';
+import { getSupabaseAdmin } from '../../db/supabaseClient.ts';
 import { dakLakPlaceDirectory } from '../../../src/data/places.ts';
 import {
   AccommodationRecord,
@@ -135,10 +136,10 @@ interface StayDbRow {
   nightly_rate_vnd: number;
   capacity_min: number;
   capacity_max: number;
-  suitable_for_json: string;
-  amenities_json: string;
+  suitable_for_json: string | CompanionType[];
+  amenities_json: string | string[];
   source_note: string;
-  is_active: number;
+  is_active: number | boolean;
   updated_at: string;
 }
 
@@ -150,9 +151,9 @@ interface LogisticsDbRow {
   daily_rate_vnd: number;
   capacity_min: number;
   capacity_max: number;
-  suitable_for_json: string;
+  suitable_for_json: string | CompanionType[];
   notes: string;
-  is_active: number;
+  is_active: number | boolean;
   updated_at: string;
 }
 
@@ -169,8 +170,9 @@ interface PlacePriceDbRow {
   updated_at: string;
 }
 
-function safeJsonArray<T>(raw: string | null | undefined, fallback: T[]): T[] {
-  if (!raw) return fallback;
+function safeJsonArray<T>(raw: unknown, fallback: T[]): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (!raw || typeof raw !== 'string') return fallback;
   try {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as T[]) : fallback;
@@ -199,10 +201,20 @@ export function inferPlaceMetadata(place: PlaceMeta): PlacePlannerMetadata {
 
   const themeTags: ThemeType[] = [];
   if (hay.includes('cà phê') || hay.includes('coffee')) themeTags.push('coffee');
-  if (hay.includes('văn hóa') || hay.includes('bảo tàng') || hay.includes('buôn') || hay.includes('thổ cẩm')) {
+  if (
+    hay.includes('văn hóa') ||
+    hay.includes('bảo tàng') ||
+    hay.includes('buôn') ||
+    hay.includes('thổ cẩm')
+  ) {
     themeTags.push('culture');
   }
-  if (hay.includes('thác') || hay.includes('vườn quốc gia') || hay.includes('hồ') || hay.includes('đá voi')) {
+  if (
+    hay.includes('thác') ||
+    hay.includes('vườn quốc gia') ||
+    hay.includes('hồ') ||
+    hay.includes('đá voi')
+  ) {
     themeTags.push('nature');
   }
   if (hay.includes('ẩm thực') || hay.includes('phố')) themeTags.push('cuisine');
@@ -217,21 +229,34 @@ export function inferPlaceMetadata(place: PlaceMeta): PlacePlannerMetadata {
 }
 
 /**
- * Lists active accommodation options from SQLite filtered by optional tier, capacity, and companion fit.
+ * Lists active accommodation options from Supabase (or SQLite fallback) filtered by optional tier, capacity, and companion fit.
  */
-export function listActiveStays(filters?: {
+export async function listActiveStays(filters?: {
   tier?: BudgetType;
   travelersCount?: number;
   companionType?: CompanionType;
   area?: string;
-}): AccommodationRecord[] {
-  const db = getDb();
-  const rows = db
-    .prepare('SELECT * FROM stays WHERE is_active = 1 ORDER BY nightly_rate_vnd ASC, id ASC')
-    .all() as unknown as StayDbRow[];
+}): Promise<AccommodationRecord[]> {
+  let rows: StayDbRow[];
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('stays')
+      .select('*')
+      .eq('is_active', true)
+      .order('nightly_rate_vnd', { ascending: true })
+      .order('id', { ascending: true });
+    if (error) throw new Error(`Supabase listActiveStays failed: ${error.message}`);
+    rows = (data || []) as StayDbRow[];
+  } else {
+    const db = getDb();
+    rows = db
+      .prepare('SELECT * FROM stays WHERE is_active = 1 ORDER BY nightly_rate_vnd ASC, id ASC')
+      .all() as unknown as StayDbRow[];
+  }
 
   let records: AccommodationRecord[] = rows.map((row) => ({
-    id: row.id,
+    id: Number(row.id),
     name: row.name,
     area: row.area,
     tier: row.tier,
@@ -240,7 +265,7 @@ export function listActiveStays(filters?: {
     capacityMax: row.capacity_max,
     suitableFor: safeJsonArray<CompanionType>(row.suitable_for_json, []),
     amenities: safeJsonArray<string>(row.amenities_json, []),
-    isActive: row.is_active === 1,
+    isActive: row.is_active === true || row.is_active === 1,
     sourceNote: row.source_note || undefined,
     updatedAt: row.updated_at,
   }));
@@ -283,20 +308,33 @@ export function listActiveStays(filters?: {
 }
 
 /**
- * Lists active transport/logistics options from SQLite filtered by optional tier, capacity, and companion fit.
+ * Lists active transport/logistics options from Supabase (or SQLite fallback) filtered by optional tier, capacity, and companion fit.
  */
-export function listActiveLogistics(filters?: {
+export async function listActiveLogistics(filters?: {
   tier?: BudgetType;
   travelersCount?: number;
   companionType?: CompanionType;
-}): LogisticsRecord[] {
-  const db = getDb();
-  const rows = db
-    .prepare('SELECT * FROM logistics WHERE is_active = 1 ORDER BY daily_rate_vnd ASC, id ASC')
-    .all() as unknown as LogisticsDbRow[];
+}): Promise<LogisticsRecord[]> {
+  let rows: LogisticsDbRow[];
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('logistics')
+      .select('*')
+      .eq('is_active', true)
+      .order('daily_rate_vnd', { ascending: true })
+      .order('id', { ascending: true });
+    if (error) throw new Error(`Supabase listActiveLogistics failed: ${error.message}`);
+    rows = (data || []) as LogisticsDbRow[];
+  } else {
+    const db = getDb();
+    rows = db
+      .prepare('SELECT * FROM logistics WHERE is_active = 1 ORDER BY daily_rate_vnd ASC, id ASC')
+      .all() as unknown as LogisticsDbRow[];
+  }
 
   let records: LogisticsRecord[] = rows.map((row) => ({
-    id: row.id,
+    id: Number(row.id),
     mode: row.mode,
     label: row.label,
     tier: row.tier,
@@ -305,7 +343,7 @@ export function listActiveLogistics(filters?: {
     capacityMax: row.capacity_max,
     suitableFor: safeJsonArray<CompanionType>(row.suitable_for_json, []),
     notes: row.notes || '',
-    isActive: row.is_active === 1,
+    isActive: row.is_active === true || row.is_active === 1,
     updatedAt: row.updated_at,
   }));
 
@@ -349,15 +387,35 @@ export function listActiveLogistics(filters?: {
 }
 
 /**
- * Upserts a cached place ticket & spend estimate into SQLite `place_prices`.
+ * Upserts a cached place ticket & spend estimate into Supabase (or SQLite fallback) `place_prices`.
  */
-export function upsertPlacePrice(input: UpsertPlacePriceInput): void {
-  const db = getDb();
+export async function upsertPlacePrice(input: UpsertPlacePriceInput): Promise<void> {
   const now = new Date().toISOString();
   const fetchedAt = input.fetchedAt || now;
   const ticketVnd = Math.max(0, Math.round(input.ticketVnd));
   const estimatedSpendVnd = Math.max(ticketVnd, Math.round(input.estimatedSpendVnd));
 
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from('place_prices').upsert(
+      {
+        place_title: input.placeTitle.trim(),
+        area_cluster: input.areaCluster.trim(),
+        ticket_vnd: ticketVnd,
+        estimated_spend_vnd: estimatedSpendVnd,
+        price_source: input.priceSource,
+        price_note: (input.priceNote || '').trim(),
+        source_url: (input.sourceUrl || '').trim(),
+        fetched_at: fetchedAt,
+        updated_at: now,
+      },
+      { onConflict: 'place_title' }
+    );
+    if (error) throw new Error(`Supabase upsertPlacePrice failed: ${error.message}`);
+    return;
+  }
+
+  const db = getDb();
   db.prepare(
     `INSERT INTO place_prices (
       place_title, area_cluster, ticket_vnd, estimated_spend_vnd,
@@ -398,14 +456,23 @@ export function isPriceTimestampStale(
 }
 
 /**
- * Combines `dakLakPlaceDirectory` with `areaCluster`, `themeTags`, and SQLite `place_prices`.
+ * Combines `dakLakPlaceDirectory` with `areaCluster`, `themeTags`, and Supabase (or SQLite) `place_prices`.
  */
-export function listEnrichedPlaces(
+export async function listEnrichedPlaces(
   ttlHours = AI_PRICE_TTL_HOURS,
   nowMs = Date.now()
-): EnrichedPlaceRecord[] {
-  const db = getDb();
-  const rows = db.prepare('SELECT * FROM place_prices').all() as unknown as PlacePriceDbRow[];
+): Promise<EnrichedPlaceRecord[]> {
+  let rows: PlacePriceDbRow[];
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.from('place_prices').select('*');
+    if (error) throw new Error(`Supabase listEnrichedPlaces failed: ${error.message}`);
+    rows = (data || []) as PlacePriceDbRow[];
+  } else {
+    const db = getDb();
+    rows = db.prepare('SELECT * FROM place_prices').all() as unknown as PlacePriceDbRow[];
+  }
+
   const byTitle = new Map<string, PlacePriceDbRow>();
   for (const row of rows) {
     byTitle.set(row.place_title.trim().toLowerCase(), row);

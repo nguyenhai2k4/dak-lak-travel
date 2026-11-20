@@ -1,4 +1,5 @@
-import { getDb } from '../../db/database.ts';
+import { getDb, isUsingSupabase } from '../../db/database.ts';
+import { getSupabaseAdmin } from '../../db/supabaseClient.ts';
 import {
   CmsPostAdmin,
   CmsPostPublic,
@@ -16,6 +17,7 @@ import {
   normalizeBentoMeta,
   normalizeStoryMeta,
   PostDbRow,
+  safeJsonValue,
 } from './postMapper.ts';
 import { sanitizeRichHtml } from '../core/sanitize.ts';
 import { ensureUniqueSlug } from '../core/slugify.ts';
@@ -23,6 +25,26 @@ import { translatePostToEnglish } from '../ai/translator.ts';
 
 export const DEFAULT_COVER_IMAGE =
   'https://images.unsplash.com/photo-1513528916469-746b1cf609e2?auto=format&fit=crop&w=1000&q=80';
+
+const SUPABASE_POST_SELECT = '*, author:users!posts_author_id_fkey(display_name)';
+
+function normalizeSupabasePostRow(raw: Record<string, unknown>): PostDbRow {
+  const authorObj = Array.isArray(raw.author) ? raw.author[0] : raw.author;
+  const authorName =
+    authorObj && typeof authorObj === 'object' && 'display_name' in authorObj
+      ? String((authorObj as { display_name?: string | null }).display_name || '') || null
+      : null;
+
+  const { author: _ignored, ...rest } = raw;
+  return {
+    ...(rest as unknown as PostDbRow),
+    id: Number(rest.id),
+    author_id: rest.author_id !== null && rest.author_id !== undefined ? Number(rest.author_id) : null,
+    reviewed_by:
+      rest.reviewed_by !== null && rest.reviewed_by !== undefined ? Number(rest.reviewed_by) : null,
+    author_name: authorName,
+  };
+}
 
 export function validateSection(val: unknown): CmsSectionType {
   return val === 'stories' ? 'stories' : 'bento';
@@ -65,15 +87,6 @@ export function derivePreviewParagraphs(
   return excerpt ? [excerpt] : [];
 }
 
-function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
 function validateTranslationStatus(val: unknown): TranslationStatus | null {
   if (val === 'none' || val === 'pending' || val === 'translated' || val === 'failed') {
     return val;
@@ -81,7 +94,18 @@ function validateTranslationStatus(val: unknown): TranslationStatus | null {
   return null;
 }
 
-function getPostRowWithAuthorById(id: number): PostDbRow | undefined {
+async function getPostRowWithAuthorById(id: number): Promise<PostDbRow | undefined> {
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('posts')
+      .select(SUPABASE_POST_SELECT)
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw new Error(`Supabase getPostRowWithAuthorById failed: ${error.message}`);
+    return data ? normalizeSupabasePostRow(data as Record<string, unknown>) : undefined;
+  }
+
   const db = getDb();
   return db
     .prepare(
@@ -93,13 +117,60 @@ function getPostRowWithAuthorById(id: number): PostDbRow | undefined {
     .get(id) as PostDbRow | undefined;
 }
 
-export async function runTranslationAndSave(postId: number): Promise<void> {
+async function getRawPostById(id: number): Promise<PostDbRow | undefined> {
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.from('posts').select('*').eq('id', id).maybeSingle();
+    if (error) throw new Error(`Supabase getRawPostById failed: ${error.message}`);
+    return data ? normalizeSupabasePostRow(data as Record<string, unknown>) : undefined;
+  }
+
   const db = getDb();
-  const row = db.prepare('SELECT * FROM posts WHERE id = ?').get(postId) as PostDbRow | undefined;
+  return db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as PostDbRow | undefined;
+}
+
+async function findPostRowWithAuthorBySlugOrLegacyKey(
+  cleanedSlug: string
+): Promise<PostDbRow | undefined> {
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data: bySlug, error: slugErr } = await supabase
+      .from('posts')
+      .select(SUPABASE_POST_SELECT)
+      .eq('slug', cleanedSlug)
+      .limit(1)
+      .maybeSingle();
+    if (slugErr) throw new Error(`Supabase post lookup by slug failed: ${slugErr.message}`);
+    if (bySlug) return normalizeSupabasePostRow(bySlug as Record<string, unknown>);
+
+    const { data: byLegacy, error: legacyErr } = await supabase
+      .from('posts')
+      .select(SUPABASE_POST_SELECT)
+      .eq('legacy_key', cleanedSlug)
+      .limit(1)
+      .maybeSingle();
+    if (legacyErr) throw new Error(`Supabase post lookup by legacy_key failed: ${legacyErr.message}`);
+    return byLegacy ? normalizeSupabasePostRow(byLegacy as Record<string, unknown>) : undefined;
+  }
+
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT p.*, u.display_name AS author_name
+       FROM posts p
+       LEFT JOIN users u ON u.id = p.author_id
+       WHERE p.slug = ? OR p.legacy_key = ?
+       LIMIT 1`
+    )
+    .get(cleanedSlug, cleanedSlug) as PostDbRow | undefined;
+}
+
+export async function runTranslationAndSave(postId: number): Promise<void> {
+  const row = await getRawPostById(postId);
   if (!row) return;
 
-  const previewParagraphs = safeJsonParse<string[]>(row.preview_paragraphs_json, []);
-  const glossary = safeJsonParse<GlossaryItem[]>(row.glossary_json, []);
+  const previewParagraphs = safeJsonValue<string[]>(row.preview_paragraphs_json, []);
+  const glossary = safeJsonValue<GlossaryItem[]>(row.glossary_json, []);
 
   const { payload, status } = await translatePostToEnglish({
     title: row.title,
@@ -116,6 +187,33 @@ export async function runTranslationAndSave(postId: number): Promise<void> {
   });
 
   const now = new Date().toISOString();
+
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        title_en: payload.title,
+        excerpt_en: payload.excerpt,
+        category_en: payload.category,
+        location_en: payload.location,
+        read_time_en: payload.readTime,
+        cta_label_en: payload.cta,
+        preview_paragraphs_en_json: payload.previewParagraphs,
+        content_html_en: payload.contentHtml,
+        quote_en: payload.quote,
+        quote_source_en: payload.quoteSource,
+        glossary_en_json: payload.glossary,
+        translation_status: status,
+        translation_provider: payload.provider,
+        translated_at: now,
+      })
+      .eq('id', postId);
+    if (error) throw new Error(`Supabase save translation failed: ${error.message}`);
+    return;
+  }
+
+  const db = getDb();
   db.prepare(
     `UPDATE posts SET
       title_en = ?,
@@ -152,7 +250,29 @@ export async function runTranslationAndSave(postId: number): Promise<void> {
   );
 }
 
-export function listPublicPosts(lang: Language, section?: string): CmsPostPublic[] {
+export async function listPublicPosts(lang: Language, section?: string): Promise<CmsPostPublic[]> {
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    let query = supabase
+      .from('posts')
+      .select(SUPABASE_POST_SELECT)
+      .eq('status', 'published');
+
+    if (section === 'bento' || section === 'stories') {
+      query = query.eq('section', section);
+    }
+
+    const { data, error } = await query
+      .order('sort_order', { ascending: true })
+      .order('published_at', { ascending: false })
+      .order('id', { ascending: true });
+    if (error) throw new Error(`Supabase listPublicPosts failed: ${error.message}`);
+
+    return ((data || []) as Record<string, unknown>[]).map((r) =>
+      mapRowToPublicPost(normalizeSupabasePostRow(r), lang)
+    );
+  }
+
   const db = getDb();
   let sql = `
     SELECT p.*, u.display_name AS author_name
@@ -183,17 +303,44 @@ export interface QueryRelevantPostsParams {
 /**
  * Dynamically filters and ranks published CMS stories/articles by theme and locations.
  */
-export function queryRelevantPublishedPosts(params: QueryRelevantPostsParams): CmsPostPublic[] {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT p.*, u.display_name AS author_name
-       FROM posts p
-       LEFT JOIN users u ON u.id = p.author_id
-       WHERE p.status = 'published'
-       ORDER BY (p.section = 'stories') DESC, p.sort_order ASC, p.published_at DESC, p.id ASC`
-    )
-    .all() as unknown as PostDbRow[];
+export async function queryRelevantPublishedPosts(
+  params: QueryRelevantPostsParams
+): Promise<CmsPostPublic[]> {
+  let rows: PostDbRow[];
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('posts')
+      .select(SUPABASE_POST_SELECT)
+      .eq('status', 'published')
+      .order('sort_order', { ascending: true })
+      .order('published_at', { ascending: false })
+      .order('id', { ascending: true });
+    if (error) throw new Error(`Supabase queryRelevantPublishedPosts failed: ${error.message}`);
+    rows = ((data || []) as Record<string, unknown>[]).map(normalizeSupabasePostRow);
+    // Prioritize stories before bento, matching SQLite ORDER BY (p.section = 'stories') DESC
+    rows.sort((a, b) => {
+      const aStory = a.section === 'stories' ? 1 : 0;
+      const bStory = b.section === 'stories' ? 1 : 0;
+      if (bStory !== aStory) return bStory - aStory;
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+      const aPub = a.published_at || '';
+      const bPub = b.published_at || '';
+      if (bPub !== aPub) return bPub.localeCompare(aPub);
+      return a.id - b.id;
+    });
+  } else {
+    const db = getDb();
+    rows = db
+      .prepare(
+        `SELECT p.*, u.display_name AS author_name
+         FROM posts p
+         LEFT JOIN users u ON u.id = p.author_id
+         WHERE p.status = 'published'
+         ORDER BY (p.section = 'stories') DESC, p.sort_order ASC, p.published_at DESC, p.id ASC`
+      )
+      .all() as unknown as PostDbRow[];
+  }
 
   const posts = rows.map((row) => mapRowToPublicPost(row, params.lang));
   const limit = Math.max(1, Math.min(20, params.limit ?? 5));
@@ -236,23 +383,14 @@ export function queryRelevantPublishedPosts(params: QueryRelevantPostsParams): C
   return pool.slice(0, limit).map((item) => item.post);
 }
 
-export function getPublicPostBySlug(
+export async function getPublicPostBySlug(
   slug: string,
   lang: Language,
   isPreview: boolean,
   authUser?: AuthUser
-): { post: CmsPostPublic; related: CmsPostPublic[] } {
+): Promise<{ post: CmsPostPublic; related: CmsPostPublic[] }> {
   const cleanedSlug = String(slug || '').trim();
-  const db = getDb();
-  const row = db
-    .prepare(
-      `SELECT p.*, u.display_name AS author_name
-       FROM posts p
-       LEFT JOIN users u ON u.id = p.author_id
-       WHERE p.slug = ? OR p.legacy_key = ?
-       LIMIT 1`
-    )
-    .get(cleanedSlug, cleanedSlug) as PostDbRow | undefined;
+  const row = await findPostRowWithAuthorBySlugOrLegacyKey(cleanedSlug);
 
   if (!row) {
     throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
@@ -267,16 +405,40 @@ export function getPublicPostBySlug(
     }
   }
 
-  const relatedRows = db
-    .prepare(
-      `SELECT p.*, u.display_name AS author_name
-       FROM posts p
-       LEFT JOIN users u ON u.id = p.author_id
-       WHERE p.status = 'published' AND p.id != ?
-       ORDER BY (p.section = ?) DESC, (p.theme_key = ?) DESC, p.sort_order ASC
-       LIMIT 3`
-    )
-    .all(row.id, row.section, row.theme_key) as unknown as PostDbRow[];
+  let relatedRows: PostDbRow[];
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('posts')
+      .select(SUPABASE_POST_SELECT)
+      .eq('status', 'published')
+      .neq('id', row.id)
+      .order('sort_order', { ascending: true });
+    if (error) throw new Error(`Supabase related posts query failed: ${error.message}`);
+    relatedRows = ((data || []) as Record<string, unknown>[]).map(normalizeSupabasePostRow);
+    relatedRows.sort((a, b) => {
+      const aSec = a.section === row.section ? 1 : 0;
+      const bSec = b.section === row.section ? 1 : 0;
+      if (bSec !== aSec) return bSec - aSec;
+      const aTheme = a.theme_key === row.theme_key ? 1 : 0;
+      const bTheme = b.theme_key === row.theme_key ? 1 : 0;
+      if (bTheme !== aTheme) return bTheme - aTheme;
+      return a.sort_order - b.sort_order;
+    });
+    relatedRows = relatedRows.slice(0, 3);
+  } else {
+    const db = getDb();
+    relatedRows = db
+      .prepare(
+        `SELECT p.*, u.display_name AS author_name
+         FROM posts p
+         LEFT JOIN users u ON u.id = p.author_id
+         WHERE p.status = 'published' AND p.id != ?
+         ORDER BY (p.section = ?) DESC, (p.theme_key = ?) DESC, p.sort_order ASC
+         LIMIT 3`
+      )
+      .all(row.id, row.section, row.theme_key) as unknown as PostDbRow[];
+  }
 
   return {
     post: mapRowToPublicPost(row, lang),
@@ -284,16 +446,52 @@ export function getPublicPostBySlug(
   };
 }
 
-export function listAdminPosts(
+export async function listAdminPosts(
   user: AuthUser,
   filters?: { section?: string; status?: string; q?: string; slug?: string }
-): CmsPostAdmin[] {
-  const db = getDb();
+): Promise<CmsPostAdmin[]> {
   const section = filters?.section;
   const status = filters?.status;
   const slug = String(filters?.slug || '').trim();
   const q = String(filters?.q || '').trim().toLowerCase();
 
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    let query = supabase.from('posts').select(SUPABASE_POST_SELECT);
+
+    if (user.role === 'writer') {
+      query = query.eq('author_id', user.id);
+    }
+    if (section === 'bento' || section === 'stories') {
+      query = query.eq('section', section);
+    }
+    if (status === 'draft' || status === 'in_review' || status === 'published') {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query
+      .order('section', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .order('updated_at', { ascending: false });
+    if (error) throw new Error(`Supabase listAdminPosts failed: ${error.message}`);
+
+    let rows = ((data || []) as Record<string, unknown>[]).map(normalizeSupabasePostRow);
+    if (slug) {
+      rows = rows.filter((r) => r.slug === slug || r.legacy_key === slug);
+    }
+    if (q) {
+      rows = rows.filter(
+        (r) =>
+          r.title.toLowerCase().includes(q) ||
+          r.location.toLowerCase().includes(q) ||
+          r.category.toLowerCase().includes(q) ||
+          r.slug.toLowerCase().includes(q)
+      );
+    }
+    return rows.map(mapRowToAdminPost);
+  }
+
+  const db = getDb();
   let sql = `
     SELECT p.*, u.display_name AS author_name
     FROM posts p
@@ -335,12 +533,12 @@ export function listAdminPosts(
   return rows.map(mapRowToAdminPost);
 }
 
-export function getAdminPostById(user: AuthUser, id: number): CmsPostAdmin {
+export async function getAdminPostById(user: AuthUser, id: number): Promise<CmsPostAdmin> {
   if (!Number.isInteger(id)) {
     throw new ServiceError(400, 'VALIDATION_ERROR', 'ID bài viết không hợp lệ.');
   }
 
-  const row = getPostRowWithAuthorById(id);
+  const row = await getPostRowWithAuthorById(id);
   if (!row) {
     throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
   }
@@ -356,22 +554,16 @@ export function getAdminPostById(user: AuthUser, id: number): CmsPostAdmin {
   return mapRowToAdminPost(row);
 }
 
-export function getAdminPostByIdOrSlug(user: AuthUser, idOrSlug: string | number): CmsPostAdmin {
+export async function getAdminPostByIdOrSlug(
+  user: AuthUser,
+  idOrSlug: string | number
+): Promise<CmsPostAdmin> {
   const raw = String(idOrSlug).trim();
   if (/^\d+$/.test(raw)) {
     return getAdminPostById(user, Number(raw));
   }
 
-  const db = getDb();
-  const row = db
-    .prepare(
-      `SELECT p.*, u.display_name AS author_name
-       FROM posts p
-       LEFT JOIN users u ON u.id = p.author_id
-       WHERE p.slug = ? OR p.legacy_key = ?
-       LIMIT 1`
-    )
-    .get(raw, raw) as PostDbRow | undefined;
+  const row = await findPostRowWithAuthorBySlugOrLegacyKey(raw);
 
   if (!row) {
     throw new ServiceError(404, 'NOT_FOUND', `Không tìm thấy bài viết "${raw}".`);
@@ -404,7 +596,7 @@ export async function createAdminPost(
 
   const section = validateSection(body.section);
   const themeKey = validateTheme(body.themeKey);
-  const slug = ensureUniqueSlug(String(body.slug || title));
+  const slug = await ensureUniqueSlug(String(body.slug || title));
   const contentHtml = sanitizeRichHtml(String(body.contentHtml || ''));
   const previewParagraphs = derivePreviewParagraphs(body.previewParagraphs, contentHtml, excerpt);
   const glossary = sanitizeGlossary(body.glossary);
@@ -413,11 +605,6 @@ export async function createAdminPost(
     section === 'bento'
       ? normalizeBentoMeta(body.bentoConfig as Record<string, unknown> | undefined)
       : normalizeStoryMeta(body.storyConfig as Record<string, unknown> | undefined);
-
-  const db = getDb();
-  const maxOrderRow = db
-    .prepare('SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM posts WHERE section = ?')
-    .get(section) as { maxOrder: number };
 
   const requestedStatus = body.status;
   const finalStatus =
@@ -430,7 +617,6 @@ export async function createAdminPost(
   const now = new Date().toISOString();
   const publishedAt = finalStatus === 'published' ? now : null;
 
-  // Admin can optionally provide English fields at creation time (e.g. from AI agent bilingual draft)
   const hasExplicitEn =
     user.role === 'admin' &&
     (Boolean(String(body.titleEn || '').trim()) ||
@@ -446,10 +632,10 @@ export async function createAdminPost(
   const enReadTime =
     user.role === 'admin' && body.readTimeEn !== undefined ? String(body.readTimeEn) : '';
   const enCta = user.role === 'admin' && body.ctaEn !== undefined ? String(body.ctaEn) : '';
-  const enPreviewParagraphs =
+  const enPreviewParagraphsArr =
     user.role === 'admin' && body.previewParagraphsEn !== undefined
-      ? JSON.stringify(sanitizeStringArray(body.previewParagraphsEn))
-      : '[]';
+      ? sanitizeStringArray(body.previewParagraphsEn)
+      : [];
   const enContentHtml =
     user.role === 'admin' && body.contentHtmlEn !== undefined
       ? sanitizeRichHtml(String(body.contentHtmlEn))
@@ -457,10 +643,10 @@ export async function createAdminPost(
   const enQuote = user.role === 'admin' && body.quoteEn !== undefined ? String(body.quoteEn) : '';
   const enQuoteSource =
     user.role === 'admin' && body.quoteSourceEn !== undefined ? String(body.quoteSourceEn) : '';
-  const enGlossary =
+  const enGlossaryArr =
     user.role === 'admin' && body.glossaryEn !== undefined
-      ? JSON.stringify(sanitizeGlossary(body.glossaryEn))
-      : '[]';
+      ? sanitizeGlossary(body.glossaryEn)
+      : [];
 
   const explicitStatus = validateTranslationStatus(body.translationStatus);
   const translationStatus: TranslationStatus = hasExplicitEn
@@ -471,75 +657,147 @@ export async function createAdminPost(
     : '';
   const translatedAt = hasExplicitEn ? now : null;
 
-  const result = db
-    .prepare(
-      `INSERT INTO posts (
-        slug, legacy_key, section, status, sort_order, author_id, reviewed_by, review_note,
-        cover_image, image_alt, theme_key, section_meta_json,
-        title, excerpt, category, location, read_time, cta_label,
-        preview_paragraphs_json, content_html, quote, quote_source, glossary_json,
-        title_en, excerpt_en, category_en, location_en, read_time_en, cta_label_en,
-        preview_paragraphs_en_json, content_html_en, quote_en, quote_source_en, glossary_en_json,
-        translation_status, translation_provider, translated_at,
-        published_at, created_at, updated_at
-      ) VALUES (
-        ?, NULL, ?, ?, ?, ?, ?, '',
-        ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?, ?,
-        ?, ?, ?
-      )`
-    )
-    .run(
-      slug,
-      section,
-      finalStatus,
-      maxOrderRow.maxOrder + 1,
-      user.id,
-      finalStatus === 'published' ? user.id : null,
-      String(body.image || '').trim() || DEFAULT_COVER_IMAGE,
-      String(body.imageAlt || title).trim(),
-      themeKey,
-      JSON.stringify(sectionMeta),
-      title,
-      excerpt,
-      String(body.category || 'Khám phá Đắk Lắk').trim(),
-      String(body.location || 'Đắk Lắk').trim(),
-      String(body.readTime || '5 phút đọc').trim(),
-      String(body.cta || 'Đọc câu chuyện').trim(),
-      JSON.stringify(previewParagraphs),
-      contentHtml || `<p>${excerpt}</p>`,
-      String(body.quote || '').trim(),
-      String(body.quoteSource || '').trim(),
-      JSON.stringify(glossary),
-      enTitle,
-      enExcerpt,
-      enCategory,
-      enLocation,
-      enReadTime,
-      enCta,
-      enPreviewParagraphs,
-      enContentHtml,
-      enQuote,
-      enQuoteSource,
-      enGlossary,
-      translationStatus,
-      translationProvider,
-      translatedAt,
-      publishedAt,
-      now,
-      now
-    );
+  let createdId: number;
 
-  const createdId = Number(result.lastInsertRowid);
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { data: maxRow } = await supabase
+      .from('posts')
+      .select('sort_order')
+      .eq('section', section)
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const maxOrder = maxRow?.sort_order !== undefined ? Number(maxRow.sort_order) : -1;
+
+    const { data: inserted, error } = await supabase
+      .from('posts')
+      .insert({
+        slug,
+        legacy_key: null,
+        section,
+        status: finalStatus,
+        sort_order: maxOrder + 1,
+        author_id: user.id,
+        reviewed_by: finalStatus === 'published' ? user.id : null,
+        review_note: '',
+        cover_image: String(body.image || '').trim() || DEFAULT_COVER_IMAGE,
+        image_alt: String(body.imageAlt || title).trim(),
+        theme_key: themeKey,
+        section_meta_json: sectionMeta,
+        title,
+        excerpt,
+        category: String(body.category || 'Khám phá Đắk Lắk').trim(),
+        location: String(body.location || 'Đắk Lắk').trim(),
+        read_time: String(body.readTime || '5 phút đọc').trim(),
+        cta_label: String(body.cta || 'Đọc câu chuyện').trim(),
+        preview_paragraphs_json: previewParagraphs,
+        content_html: contentHtml || `<p>${excerpt}</p>`,
+        quote: String(body.quote || '').trim(),
+        quote_source: String(body.quoteSource || '').trim(),
+        glossary_json: glossary,
+        title_en: enTitle,
+        excerpt_en: enExcerpt,
+        category_en: enCategory,
+        location_en: enLocation,
+        read_time_en: enReadTime,
+        cta_label_en: enCta,
+        preview_paragraphs_en_json: enPreviewParagraphsArr,
+        content_html_en: enContentHtml,
+        quote_en: enQuote,
+        quote_source_en: enQuoteSource,
+        glossary_en_json: enGlossaryArr,
+        translation_status: translationStatus,
+        translation_provider: translationProvider,
+        translated_at: translatedAt,
+        published_at: publishedAt,
+        created_at: now,
+        updated_at: now,
+      })
+      .select('id')
+      .single();
+
+    if (error || !inserted) {
+      throw new Error(`Supabase createAdminPost failed: ${error?.message || 'Unknown error'}`);
+    }
+    createdId = Number(inserted.id);
+  } else {
+    const db = getDb();
+    const maxOrderRow = db
+      .prepare('SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM posts WHERE section = ?')
+      .get(section) as { maxOrder: number };
+
+    const result = db
+      .prepare(
+        `INSERT INTO posts (
+          slug, legacy_key, section, status, sort_order, author_id, reviewed_by, review_note,
+          cover_image, image_alt, theme_key, section_meta_json,
+          title, excerpt, category, location, read_time, cta_label,
+          preview_paragraphs_json, content_html, quote, quote_source, glossary_json,
+          title_en, excerpt_en, category_en, location_en, read_time_en, cta_label_en,
+          preview_paragraphs_en_json, content_html_en, quote_en, quote_source_en, glossary_en_json,
+          translation_status, translation_provider, translated_at,
+          published_at, created_at, updated_at
+        ) VALUES (
+          ?, NULL, ?, ?, ?, ?, ?, '',
+          ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?,
+          ?, ?, ?
+        )`
+      )
+      .run(
+        slug,
+        section,
+        finalStatus,
+        maxOrderRow.maxOrder + 1,
+        user.id,
+        finalStatus === 'published' ? user.id : null,
+        String(body.image || '').trim() || DEFAULT_COVER_IMAGE,
+        String(body.imageAlt || title).trim(),
+        themeKey,
+        JSON.stringify(sectionMeta),
+        title,
+        excerpt,
+        String(body.category || 'Khám phá Đắk Lắk').trim(),
+        String(body.location || 'Đắk Lắk').trim(),
+        String(body.readTime || '5 phút đọc').trim(),
+        String(body.cta || 'Đọc câu chuyện').trim(),
+        JSON.stringify(previewParagraphs),
+        contentHtml || `<p>${excerpt}</p>`,
+        String(body.quote || '').trim(),
+        String(body.quoteSource || '').trim(),
+        JSON.stringify(glossary),
+        enTitle,
+        enExcerpt,
+        enCategory,
+        enLocation,
+        enReadTime,
+        enCta,
+        JSON.stringify(enPreviewParagraphsArr),
+        enContentHtml,
+        enQuote,
+        enQuoteSource,
+        JSON.stringify(enGlossaryArr),
+        translationStatus,
+        translationProvider,
+        translatedAt,
+        publishedAt,
+        now,
+        now
+      );
+
+    createdId = Number(result.lastInsertRowid);
+  }
+
   if (finalStatus === 'published' && (!hasExplicitEn || Boolean(body.retranslateOnSave))) {
     await runTranslationAndSave(createdId);
   }
 
-  const createdRow = getPostRowWithAuthorById(createdId)!;
+  const createdRow = (await getPostRowWithAuthorById(createdId))!;
   return mapRowToAdminPost(createdRow);
 }
 
@@ -552,8 +810,7 @@ export async function updateAdminPost(
     throw new ServiceError(400, 'VALIDATION_ERROR', 'ID bài viết không hợp lệ.');
   }
 
-  const db = getDb();
-  const existing = db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as PostDbRow | undefined;
+  const existing = await getRawPostById(id);
   if (!existing) {
     throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
   }
@@ -587,27 +844,29 @@ export async function updateAdminPost(
 
   const section = body.section ? validateSection(body.section) : existing.section;
   const themeKey = body.themeKey ? validateTheme(body.themeKey) : existing.theme_key;
-  const slug = body.slug ? ensureUniqueSlug(String(body.slug), id) : existing.slug;
+  const slug = body.slug ? await ensureUniqueSlug(String(body.slug), id) : existing.slug;
   const contentHtml =
-    body.contentHtml !== undefined ? sanitizeRichHtml(String(body.contentHtml)) : existing.content_html;
+    body.contentHtml !== undefined
+      ? sanitizeRichHtml(String(body.contentHtml))
+      : existing.content_html;
   const previewParagraphs =
     body.previewParagraphs !== undefined
       ? derivePreviewParagraphs(body.previewParagraphs, contentHtml, excerpt)
-      : safeJsonParse<string[]>(existing.preview_paragraphs_json, []);
+      : safeJsonValue<string[]>(existing.preview_paragraphs_json, []);
   const glossary =
     body.glossary !== undefined
       ? sanitizeGlossary(body.glossary)
-      : safeJsonParse<GlossaryItem[]>(existing.glossary_json, []);
+      : safeJsonValue<GlossaryItem[]>(existing.glossary_json, []);
 
   const sectionMeta =
     section === 'bento'
       ? normalizeBentoMeta(
           (body.bentoConfig as Record<string, unknown> | undefined) ??
-            safeJsonParse<Record<string, unknown>>(existing.section_meta_json, {})
+            safeJsonValue<Record<string, unknown>>(existing.section_meta_json, {})
         )
       : normalizeStoryMeta(
           (body.storyConfig as Record<string, unknown> | undefined) ??
-            safeJsonParse<Record<string, unknown>>(existing.section_meta_json, {})
+            safeJsonValue<Record<string, unknown>>(existing.section_meta_json, {})
         );
 
   let nextStatus = existing.status;
@@ -638,10 +897,10 @@ export async function updateAdminPost(
   const enReadTime =
     isAdmin && body.readTimeEn !== undefined ? String(body.readTimeEn) : existing.read_time_en;
   const enCta = isAdmin && body.ctaEn !== undefined ? String(body.ctaEn) : existing.cta_label_en;
-  const enPreviewParagraphs =
+  const enPreviewParagraphsArr =
     isAdmin && body.previewParagraphsEn !== undefined
-      ? JSON.stringify(sanitizeStringArray(body.previewParagraphsEn))
-      : existing.preview_paragraphs_en_json;
+      ? sanitizeStringArray(body.previewParagraphsEn)
+      : safeJsonValue<string[]>(existing.preview_paragraphs_en_json, []);
   const enContentHtml =
     isAdmin && body.contentHtmlEn !== undefined
       ? sanitizeRichHtml(String(body.contentHtmlEn))
@@ -651,10 +910,10 @@ export async function updateAdminPost(
     isAdmin && body.quoteSourceEn !== undefined
       ? String(body.quoteSourceEn)
       : existing.quote_source_en;
-  const enGlossary =
+  const enGlossaryArr =
     isAdmin && body.glossaryEn !== undefined
-      ? JSON.stringify(sanitizeGlossary(body.glossaryEn))
-      : existing.glossary_en_json;
+      ? sanitizeGlossary(body.glossaryEn)
+      : safeJsonValue<GlossaryItem[]>(existing.glossary_en_json, []);
 
   const enFieldsSubmitted =
     isAdmin &&
@@ -687,53 +946,99 @@ export async function updateAdminPost(
       ? now
       : existing.translated_at;
 
-  db.prepare(
-    `UPDATE posts SET
-      slug = ?, section = ?, status = ?, cover_image = ?, image_alt = ?, theme_key = ?, section_meta_json = ?,
-      title = ?, excerpt = ?, category = ?, location = ?, read_time = ?, cta_label = ?,
-      preview_paragraphs_json = ?, content_html = ?, quote = ?, quote_source = ?, glossary_json = ?,
-      title_en = ?, excerpt_en = ?, category_en = ?, location_en = ?, read_time_en = ?, cta_label_en = ?,
-      preview_paragraphs_en_json = ?, content_html_en = ?, quote_en = ?, quote_source_en = ?, glossary_en_json = ?,
-      translation_status = ?, translation_provider = ?, translated_at = ?,
-      published_at = ?, updated_at = ?
-     WHERE id = ?`
-  ).run(
-    slug,
-    section,
-    nextStatus,
-    String(body.image ?? existing.cover_image).trim(),
-    String(body.imageAlt ?? existing.image_alt).trim(),
-    themeKey,
-    JSON.stringify(sectionMeta),
-    title,
-    excerpt,
-    String(body.category ?? existing.category).trim(),
-    String(body.location ?? existing.location).trim(),
-    String(body.readTime ?? existing.read_time).trim(),
-    String(body.cta ?? existing.cta_label).trim(),
-    JSON.stringify(previewParagraphs),
-    contentHtml,
-    String(body.quote ?? existing.quote).trim(),
-    String(body.quoteSource ?? existing.quote_source).trim(),
-    JSON.stringify(glossary),
-    enTitle,
-    enExcerpt,
-    enCategory,
-    enLocation,
-    enReadTime,
-    enCta,
-    enPreviewParagraphs,
-    enContentHtml,
-    enQuote,
-    enQuoteSource,
-    enGlossary,
-    nextTranslationStatus,
-    nextTranslationProvider,
-    nextTranslatedAt,
-    publishedAt,
-    now,
-    id
-  );
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        slug,
+        section,
+        status: nextStatus,
+        cover_image: String(body.image ?? existing.cover_image).trim(),
+        image_alt: String(body.imageAlt ?? existing.image_alt).trim(),
+        theme_key: themeKey,
+        section_meta_json: sectionMeta,
+        title,
+        excerpt,
+        category: String(body.category ?? existing.category).trim(),
+        location: String(body.location ?? existing.location).trim(),
+        read_time: String(body.readTime ?? existing.read_time).trim(),
+        cta_label: String(body.cta ?? existing.cta_label).trim(),
+        preview_paragraphs_json: previewParagraphs,
+        content_html: contentHtml,
+        quote: String(body.quote ?? existing.quote).trim(),
+        quote_source: String(body.quoteSource ?? existing.quote_source).trim(),
+        glossary_json: glossary,
+        title_en: enTitle,
+        excerpt_en: enExcerpt,
+        category_en: enCategory,
+        location_en: enLocation,
+        read_time_en: enReadTime,
+        cta_label_en: enCta,
+        preview_paragraphs_en_json: enPreviewParagraphsArr,
+        content_html_en: enContentHtml,
+        quote_en: enQuote,
+        quote_source_en: enQuoteSource,
+        glossary_en_json: enGlossaryArr,
+        translation_status: nextTranslationStatus,
+        translation_provider: nextTranslationProvider,
+        translated_at: nextTranslatedAt,
+        published_at: publishedAt,
+        updated_at: now,
+      })
+      .eq('id', id);
+
+    if (error) throw new Error(`Supabase updateAdminPost failed: ${error.message}`);
+  } else {
+    const db = getDb();
+    db.prepare(
+      `UPDATE posts SET
+        slug = ?, section = ?, status = ?, cover_image = ?, image_alt = ?, theme_key = ?, section_meta_json = ?,
+        title = ?, excerpt = ?, category = ?, location = ?, read_time = ?, cta_label = ?,
+        preview_paragraphs_json = ?, content_html = ?, quote = ?, quote_source = ?, glossary_json = ?,
+        title_en = ?, excerpt_en = ?, category_en = ?, location_en = ?, read_time_en = ?, cta_label_en = ?,
+        preview_paragraphs_en_json = ?, content_html_en = ?, quote_en = ?, quote_source_en = ?, glossary_en_json = ?,
+        translation_status = ?, translation_provider = ?, translated_at = ?,
+        published_at = ?, updated_at = ?
+       WHERE id = ?`
+    ).run(
+      slug,
+      section,
+      nextStatus,
+      String(body.image ?? existing.cover_image).trim(),
+      String(body.imageAlt ?? existing.image_alt).trim(),
+      themeKey,
+      JSON.stringify(sectionMeta),
+      title,
+      excerpt,
+      String(body.category ?? existing.category).trim(),
+      String(body.location ?? existing.location).trim(),
+      String(body.readTime ?? existing.read_time).trim(),
+      String(body.cta ?? existing.cta_label).trim(),
+      JSON.stringify(previewParagraphs),
+      contentHtml,
+      String(body.quote ?? existing.quote).trim(),
+      String(body.quoteSource ?? existing.quote_source).trim(),
+      JSON.stringify(glossary),
+      enTitle,
+      enExcerpt,
+      enCategory,
+      enLocation,
+      enReadTime,
+      enCta,
+      JSON.stringify(enPreviewParagraphsArr),
+      enContentHtml,
+      enQuote,
+      enQuoteSource,
+      JSON.stringify(enGlossaryArr),
+      nextTranslationStatus,
+      nextTranslationProvider,
+      nextTranslatedAt,
+      publishedAt,
+      now,
+      id
+    );
+  }
 
   const hasCustomEnTranslation = Boolean(enTitle.trim() && enContentHtml.trim());
   const shouldAutoTranslate =
@@ -744,16 +1049,15 @@ export async function updateAdminPost(
     await runTranslationAndSave(id);
   }
 
-  return mapRowToAdminPost(getPostRowWithAuthorById(id)!);
+  return mapRowToAdminPost((await getPostRowWithAuthorById(id))!);
 }
 
-export function submitAdminPost(user: AuthUser, id: number): CmsPostAdmin {
+export async function submitAdminPost(user: AuthUser, id: number): Promise<CmsPostAdmin> {
   if (!Number.isInteger(id)) {
     throw new ServiceError(400, 'VALIDATION_ERROR', 'ID bài viết không hợp lệ.');
   }
 
-  const db = getDb();
-  const existing = db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as PostDbRow | undefined;
+  const existing = await getRawPostById(id);
   if (!existing) {
     throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
   }
@@ -762,12 +1066,22 @@ export function submitAdminPost(user: AuthUser, id: number): CmsPostAdmin {
   }
 
   const now = new Date().toISOString();
-  db.prepare("UPDATE posts SET status = 'in_review', review_note = '', updated_at = ? WHERE id = ?").run(
-    now,
-    id
-  );
 
-  return mapRowToAdminPost(getPostRowWithAuthorById(id)!);
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from('posts')
+      .update({ status: 'in_review', review_note: '', updated_at: now })
+      .eq('id', id);
+    if (error) throw new Error(`Supabase submitAdminPost failed: ${error.message}`);
+  } else {
+    const db = getDb();
+    db.prepare(
+      "UPDATE posts SET status = 'in_review', review_note = '', updated_at = ? WHERE id = ?"
+    ).run(now, id);
+  }
+
+  return mapRowToAdminPost((await getPostRowWithAuthorById(id))!);
 }
 
 export async function reviewAdminPost(
@@ -790,8 +1104,7 @@ export async function reviewAdminPost(
     throw new ServiceError(400, 'VALIDATION_ERROR', 'Hành động duyệt không hợp lệ.');
   }
 
-  const db = getDb();
-  const existing = db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as PostDbRow | undefined;
+  const existing = await getRawPostById(id);
   if (!existing) {
     throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
   }
@@ -800,13 +1113,28 @@ export async function reviewAdminPost(
   const cleanedNote = reviewNote.trim();
 
   if (action === 'publish') {
-    db.prepare(
-      `UPDATE posts
-       SET status = 'published', reviewed_by = ?, review_note = '', published_at = COALESCE(published_at, ?), updated_at = ?
-       WHERE id = ?`
-    ).run(admin.id, now, now, id);
+    if (isUsingSupabase()) {
+      const supabase = getSupabaseAdmin();
+      const { error } = await supabase
+        .from('posts')
+        .update({
+          status: 'published',
+          reviewed_by: admin.id,
+          review_note: '',
+          published_at: existing.published_at || now,
+          updated_at: now,
+        })
+        .eq('id', id);
+      if (error) throw new Error(`Supabase reviewAdminPost publish failed: ${error.message}`);
+    } else {
+      const db = getDb();
+      db.prepare(
+        `UPDATE posts
+         SET status = 'published', reviewed_by = ?, review_note = '', published_at = COALESCE(published_at, ?), updated_at = ?
+         WHERE id = ?`
+      ).run(admin.id, now, now, id);
+    }
 
-    // Preserve existing curated/AI-agent translation if present, unless status is not translated
     const alreadyTranslatedByAgent =
       existing.translation_status === 'translated' &&
       Boolean(existing.title_en.trim()) &&
@@ -817,14 +1145,29 @@ export async function reviewAdminPost(
       await runTranslationAndSave(id);
     }
   } else {
-    db.prepare(
-      `UPDATE posts
-       SET status = 'draft', reviewed_by = ?, review_note = ?, updated_at = ?
-       WHERE id = ?`
-    ).run(admin.id, cleanedNote, now, id);
+    if (isUsingSupabase()) {
+      const supabase = getSupabaseAdmin();
+      const { error } = await supabase
+        .from('posts')
+        .update({
+          status: 'draft',
+          reviewed_by: admin.id,
+          review_note: cleanedNote,
+          updated_at: now,
+        })
+        .eq('id', id);
+      if (error) throw new Error(`Supabase reviewAdminPost return failed: ${error.message}`);
+    } else {
+      const db = getDb();
+      db.prepare(
+        `UPDATE posts
+         SET status = 'draft', reviewed_by = ?, review_note = ?, updated_at = ?
+         WHERE id = ?`
+      ).run(admin.id, cleanedNote, now, id);
+    }
   }
 
-  return mapRowToAdminPost(getPostRowWithAuthorById(id)!);
+  return mapRowToAdminPost((await getPostRowWithAuthorById(id))!);
 }
 
 export async function retranslateAdminPost(admin: AuthUser, id: number): Promise<CmsPostAdmin> {
@@ -839,14 +1182,13 @@ export async function retranslateAdminPost(admin: AuthUser, id: number): Promise
     throw new ServiceError(400, 'VALIDATION_ERROR', 'ID bài viết không hợp lệ.');
   }
 
-  const db = getDb();
-  const existing = db.prepare('SELECT id FROM posts WHERE id = ?').get(id) as { id: number } | undefined;
+  const existing = await getRawPostById(id);
   if (!existing) {
     throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
   }
 
   await runTranslationAndSave(id);
-  return mapRowToAdminPost(getPostRowWithAuthorById(id)!);
+  return mapRowToAdminPost((await getPostRowWithAuthorById(id))!);
 }
 
 export async function saveCustomTranslation(
@@ -858,8 +1200,7 @@ export async function saveCustomTranslation(
     throw new ServiceError(400, 'VALIDATION_ERROR', 'ID bài viết không hợp lệ.');
   }
 
-  const db = getDb();
-  const existing = db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as PostDbRow | undefined;
+  const existing = await getRawPostById(id);
   if (!existing) {
     throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
   }
@@ -892,7 +1233,7 @@ export async function saveCustomTranslation(
   const previewParagraphsEn =
     rawPreview !== undefined
       ? derivePreviewParagraphs(rawPreview, contentHtmlEn, excerptEn)
-      : safeJsonParse<string[]>(existing.preview_paragraphs_en_json, []);
+      : safeJsonValue<string[]>(existing.preview_paragraphs_en_json, []);
 
   const quoteEn = String(body.quoteEn ?? body.quote ?? existing.quote_en).trim();
   const quoteSourceEn = String(
@@ -903,7 +1244,7 @@ export async function saveCustomTranslation(
   const glossaryEn =
     rawGlossary !== undefined
       ? sanitizeGlossary(rawGlossary)
-      : safeJsonParse<GlossaryItem[]>(existing.glossary_en_json, []);
+      : safeJsonValue<GlossaryItem[]>(existing.glossary_en_json, []);
 
   if (!titleEn || !excerptEn) {
     throw new ServiceError(
@@ -916,38 +1257,64 @@ export async function saveCustomTranslation(
   const provider = String(body.provider || body.translationProvider || 'ai-agent').trim();
   const now = new Date().toISOString();
 
-  db.prepare(
-    `UPDATE posts SET
-      title_en = ?, excerpt_en = ?, category_en = ?, location_en = ?, read_time_en = ?, cta_label_en = ?,
-      preview_paragraphs_en_json = ?, content_html_en = ?, quote_en = ?, quote_source_en = ?, glossary_en_json = ?,
-      translation_status = 'translated', translation_provider = ?, translated_at = ?, updated_at = ?
-     WHERE id = ?`
-  ).run(
-    titleEn,
-    excerptEn,
-    categoryEn,
-    locationEn,
-    readTimeEn,
-    ctaEn,
-    JSON.stringify(previewParagraphsEn),
-    contentHtmlEn,
-    quoteEn,
-    quoteSourceEn,
-    JSON.stringify(glossaryEn),
-    provider,
-    now,
-    now,
-    id
-  );
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        title_en: titleEn,
+        excerpt_en: excerptEn,
+        category_en: categoryEn,
+        location_en: locationEn,
+        read_time_en: readTimeEn,
+        cta_label_en: ctaEn,
+        preview_paragraphs_en_json: previewParagraphsEn,
+        content_html_en: contentHtmlEn,
+        quote_en: quoteEn,
+        quote_source_en: quoteSourceEn,
+        glossary_en_json: glossaryEn,
+        translation_status: 'translated',
+        translation_provider: provider,
+        translated_at: now,
+        updated_at: now,
+      })
+      .eq('id', id);
+    if (error) throw new Error(`Supabase saveCustomTranslation failed: ${error.message}`);
+  } else {
+    const db = getDb();
+    db.prepare(
+      `UPDATE posts SET
+        title_en = ?, excerpt_en = ?, category_en = ?, location_en = ?, read_time_en = ?, cta_label_en = ?,
+        preview_paragraphs_en_json = ?, content_html_en = ?, quote_en = ?, quote_source_en = ?, glossary_en_json = ?,
+        translation_status = 'translated', translation_provider = ?, translated_at = ?, updated_at = ?
+       WHERE id = ?`
+    ).run(
+      titleEn,
+      excerptEn,
+      categoryEn,
+      locationEn,
+      readTimeEn,
+      ctaEn,
+      JSON.stringify(previewParagraphsEn),
+      contentHtmlEn,
+      quoteEn,
+      quoteSourceEn,
+      JSON.stringify(glossaryEn),
+      provider,
+      now,
+      now,
+      id
+    );
+  }
 
-  return mapRowToAdminPost(getPostRowWithAuthorById(id)!);
+  return mapRowToAdminPost((await getPostRowWithAuthorById(id))!);
 }
 
-export function reorderAdminPosts(
+export async function reorderAdminPosts(
   admin: AuthUser,
   sectionInput: unknown,
   orderedIdsInput: unknown
-): void {
+): Promise<void> {
   if (admin.role !== 'admin') {
     throw new ServiceError(
       403,
@@ -965,6 +1332,21 @@ export function reorderAdminPosts(
     throw new ServiceError(400, 'VALIDATION_ERROR', 'Danh sách ID sắp xếp không hợp lệ.');
   }
 
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    await Promise.all(
+      orderedIds.map(async (postId: number, idx: number) => {
+        const { error } = await supabase
+          .from('posts')
+          .update({ sort_order: idx })
+          .eq('id', postId)
+          .eq('section', section);
+        if (error) throw new Error(`Supabase reorderAdminPosts failed: ${error.message}`);
+      })
+    );
+    return;
+  }
+
   const db = getDb();
   const stmt = db.prepare('UPDATE posts SET sort_order = ? WHERE id = ? AND section = ?');
   db.exec('BEGIN');
@@ -979,13 +1361,12 @@ export function reorderAdminPosts(
   }
 }
 
-export function deleteAdminPost(user: AuthUser, id: number): void {
+export async function deleteAdminPost(user: AuthUser, id: number): Promise<void> {
   if (!Number.isInteger(id)) {
     throw new ServiceError(400, 'VALIDATION_ERROR', 'ID bài viết không hợp lệ.');
   }
 
-  const db = getDb();
-  const existing = db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as PostDbRow | undefined;
+  const existing = await getRawPostById(id);
 
   if (!existing) {
     throw new ServiceError(404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
@@ -1004,10 +1385,18 @@ export function deleteAdminPost(user: AuthUser, id: number): void {
     }
   }
 
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from('posts').delete().eq('id', id);
+    if (error) throw new Error(`Supabase deleteAdminPost failed: ${error.message}`);
+    return;
+  }
+
+  const db = getDb();
   db.prepare('DELETE FROM posts WHERE id = ?').run(id);
 }
 
-export function getCmsStatsAndContext(sectionFilter?: string): {
+export async function getCmsStatsAndContext(sectionFilter?: string): Promise<{
   counts: {
     total: number;
     byStatus: Record<'draft' | 'in_review' | 'published', number>;
@@ -1026,18 +1415,8 @@ export function getCmsStatsAndContext(sectionFilter?: string): {
     location: string;
     translationStatus: TranslationStatus;
   }>;
-} {
-  const db = getDb();
-  let sql =
-    'SELECT id, slug, section, status, theme_key, title, category, location, translation_status FROM posts';
-  const params: string[] = [];
-  if (sectionFilter === 'bento' || sectionFilter === 'stories') {
-    sql += ' WHERE section = ?';
-    params.push(sectionFilter);
-  }
-  sql += ' ORDER BY section ASC, sort_order ASC, id ASC';
-
-  const rows = db.prepare(sql).all(...params) as Array<{
+}> {
+  type StatsRow = {
     id: number;
     slug: string;
     section: CmsSectionType;
@@ -1047,7 +1426,35 @@ export function getCmsStatsAndContext(sectionFilter?: string): {
     category: string;
     location: string;
     translation_status: TranslationStatus;
-  }>;
+  };
+
+  let rows: StatsRow[];
+  if (isUsingSupabase()) {
+    const supabase = getSupabaseAdmin();
+    let query = supabase
+      .from('posts')
+      .select('id, slug, section, status, theme_key, title, category, location, translation_status');
+    if (sectionFilter === 'bento' || sectionFilter === 'stories') {
+      query = query.eq('section', sectionFilter);
+    }
+    const { data, error } = await query
+      .order('section', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true });
+    if (error) throw new Error(`Supabase getCmsStatsAndContext failed: ${error.message}`);
+    rows = ((data || []) as StatsRow[]).map((r) => ({ ...r, id: Number(r.id) }));
+  } else {
+    const db = getDb();
+    let sql =
+      'SELECT id, slug, section, status, theme_key, title, category, location, translation_status FROM posts';
+    const params: string[] = [];
+    if (sectionFilter === 'bento' || sectionFilter === 'stories') {
+      sql += ' WHERE section = ?';
+      params.push(sectionFilter);
+    }
+    sql += ' ORDER BY section ASC, sort_order ASC, id ASC';
+    rows = db.prepare(sql).all(...params) as StatsRow[];
+  }
 
   const byStatus = { draft: 0, in_review: 0, published: 0 };
   const bySection = { bento: 0, stories: 0 };

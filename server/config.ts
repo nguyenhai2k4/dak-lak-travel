@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PricePolicy } from '../src/types/index.ts';
@@ -77,11 +78,46 @@ function parseTavilyIncludeAnswer(raw: string | undefined): boolean | 'basic' | 
   return true;
 }
 
+export const IS_VERCEL = Boolean(process.env.VERCEL);
 export const SERVER_DIR = __dirname;
-export const DATA_DIR = path.join(SERVER_DIR, 'data');
+export const DATA_DIR = IS_VERCEL
+  ? path.join(os.tmpdir(), 'daklak-data')
+  : path.join(SERVER_DIR, 'data');
 export const DB_PATH = process.env.CMS_DB_PATH || path.join(DATA_DIR, 'daklak.db');
-export const UPLOADS_DIR = process.env.CMS_UPLOADS_DIR || path.join(SERVER_DIR, 'uploads');
+export const UPLOADS_DIR =
+  process.env.CMS_UPLOADS_DIR ||
+  (IS_VERCEL ? path.join(os.tmpdir(), 'daklak-uploads') : path.join(SERVER_DIR, 'uploads'));
 export const DIST_DIR = path.join(ROOT_DIR, 'dist');
+
+export const SUPABASE_STORAGE_BUCKET = (process.env.SUPABASE_STORAGE_BUCKET || 'uploads').trim();
+
+export function getSupabaseUrl(): string {
+  if (!process.env.SUPABASE_URL?.trim() && !preExistingEnvKeys.has('SUPABASE_URL')) {
+    readEnvFileIntoProcess(new Set(['SUPABASE_URL']));
+  }
+  return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+}
+
+export function getSupabaseSecretKey(): string {
+  const keysToCheck = ['SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+  if (
+    !process.env.SUPABASE_SECRET_KEY?.trim() &&
+    !process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() &&
+    !keysToCheck.some((k) => preExistingEnvKeys.has(k))
+  ) {
+    readEnvFileIntoProcess(new Set(keysToCheck));
+  }
+  return (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+}
+
+export function isSupabaseConfigured(): boolean {
+  // Explicit test override: when CMS_DB_PATH is explicitly set without FORCE_SUPABASE,
+  // allow offline test suites to run cleanly against isolated temporary SQLite databases.
+  if (process.env.CMS_DB_PATH && process.env.FORCE_SUPABASE !== '1') {
+    return false;
+  }
+  return Boolean(getSupabaseUrl() && getSupabaseSecretKey());
+}
 
 export const PORT = Number(process.env.CMS_PORT || process.env.PORT || 4000);
 export const SESSION_COOKIE_NAME = 'daklak_session';

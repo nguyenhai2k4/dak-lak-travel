@@ -25,7 +25,7 @@ export interface PostDbRow {
   cover_image: string;
   image_alt: string;
   theme_key: ThemeType;
-  section_meta_json: string;
+  section_meta_json: string | Record<string, unknown>;
 
   title: string;
   excerpt: string;
@@ -33,11 +33,11 @@ export interface PostDbRow {
   location: string;
   read_time: string;
   cta_label: string;
-  preview_paragraphs_json: string;
+  preview_paragraphs_json: string | string[];
   content_html: string;
   quote: string;
   quote_source: string;
-  glossary_json: string;
+  glossary_json: string | GlossaryItem[];
 
   title_en: string;
   excerpt_en: string;
@@ -45,11 +45,11 @@ export interface PostDbRow {
   location_en: string;
   read_time_en: string;
   cta_label_en: string;
-  preview_paragraphs_en_json: string;
+  preview_paragraphs_en_json: string | string[];
   content_html_en: string;
   quote_en: string;
   quote_source_en: string;
-  glossary_en_json: string;
+  glossary_en_json: string | GlossaryItem[];
   translation_status: TranslationStatus;
   translation_provider: string;
   translated_at: string | null;
@@ -59,7 +59,11 @@ export interface PostDbRow {
   updated_at: string;
 }
 
-function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
+export function safeJsonValue<T>(raw: unknown, fallback: T): T {
+  if (raw === null || raw === undefined) return fallback;
+  if (typeof raw !== 'string') {
+    return raw as T;
+  }
   if (!raw) return fallback;
   try {
     return JSON.parse(raw) as T;
@@ -70,14 +74,14 @@ function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
 
 export function mapRowToPublicPost(row: PostDbRow, lang: Language): CmsPostPublic {
   const useEn = lang === 'en';
-  const sectionMeta = safeJsonParse<Record<string, unknown>>(row.section_meta_json, {});
-  const previewParagraphsVi = safeJsonParse<string[]>(row.preview_paragraphs_json, []);
-  const previewParagraphsEn = safeJsonParse<string[]>(row.preview_paragraphs_en_json, []);
-  const glossaryVi = safeJsonParse<GlossaryItem[]>(row.glossary_json, []);
-  const glossaryEn = safeJsonParse<GlossaryItem[]>(row.glossary_en_json, []);
+  const sectionMeta = safeJsonValue<Record<string, unknown>>(row.section_meta_json, {});
+  const previewParagraphsVi = safeJsonValue<string[]>(row.preview_paragraphs_json, []);
+  const previewParagraphsEn = safeJsonValue<string[]>(row.preview_paragraphs_en_json, []);
+  const glossaryVi = safeJsonValue<GlossaryItem[]>(row.glossary_json, []);
+  const glossaryEn = safeJsonValue<GlossaryItem[]>(row.glossary_en_json, []);
 
   return {
-    id: row.id,
+    id: Number(row.id),
     slug: row.slug,
     legacyKey: row.legacy_key,
     section: row.section,
@@ -123,7 +127,7 @@ export function mapRowToPublicPost(row: PostDbRow, lang: Language): CmsPostPubli
                 : 'mt-0',
           }
         : undefined,
-    authorId: row.author_id,
+    authorId: row.author_id !== null ? Number(row.author_id) : null,
     authorName: row.author_name || 'Ban Biên Tập Đắk Lắk',
     publishedAt: row.published_at,
     updatedAt: row.updated_at,
@@ -136,18 +140,18 @@ export function mapRowToAdminPost(row: PostDbRow): CmsPostAdmin {
   return {
     ...base,
     reviewNote: row.review_note || '',
-    reviewedBy: row.reviewed_by,
+    reviewedBy: row.reviewed_by !== null ? Number(row.reviewed_by) : null,
     titleEn: row.title_en || '',
     excerptEn: row.excerpt_en || '',
     categoryEn: row.category_en || '',
     locationEn: row.location_en || '',
     readTimeEn: row.read_time_en || '',
     ctaEn: row.cta_label_en || '',
-    previewParagraphsEn: safeJsonParse<string[]>(row.preview_paragraphs_en_json, []),
+    previewParagraphsEn: safeJsonValue<string[]>(row.preview_paragraphs_en_json, []),
     contentHtmlEn: row.content_html_en || '',
     quoteEn: row.quote_en || '',
     quoteSourceEn: row.quote_source_en || '',
-    glossaryEn: safeJsonParse<GlossaryItem[]>(row.glossary_en_json, []),
+    glossaryEn: safeJsonValue<GlossaryItem[]>(row.glossary_en_json, []),
     translationProvider: row.translation_provider || '',
     translatedAt: row.translated_at,
     createdAt: row.created_at,

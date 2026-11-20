@@ -29,6 +29,7 @@ import {
 import {
   createUser,
   findAuthUserByEmail,
+  findUserForLoginByEmail,
   listUsers,
   updateUser,
 } from '../server/services/cms/usersService.ts';
@@ -489,14 +490,14 @@ class LocalCmsClient implements CmsClient {
     this.target = process.env.CMS_DB_PATH || path.join(ROOT_DIR, 'server', 'data', 'daklak.db');
   }
 
-  private init(): void {
+  private async init(): Promise<void> {
     if (this.seeded) return;
-    ensureSeedData();
+    await ensureSeedData();
     this.seeded = true;
   }
 
-  private resolveActor(): AuthUser {
-    this.init();
+  private async resolveActor(): Promise<AuthUser> {
+    await this.init();
     const saved = readSessionFile(this.sessionFile);
     const email = (
       this.asEmail ||
@@ -507,7 +508,7 @@ class LocalCmsClient implements CmsClient {
       .trim()
       .toLowerCase();
 
-    const user = findAuthUserByEmail(email);
+    const user = await findAuthUserByEmail(email);
     if (!user) {
       throw new CliError(
         'UNAUTHORIZED',
@@ -520,7 +521,7 @@ class LocalCmsClient implements CmsClient {
   }
 
   async getActor() {
-    const u = this.resolveActor();
+    const u = await this.resolveActor();
     return {
       id: u.id,
       email: u.email,
@@ -530,41 +531,28 @@ class LocalCmsClient implements CmsClient {
   }
 
   async health() {
-    this.init();
+    await this.init();
     getDb().prepare('SELECT 1').get();
     return { ok: true, transport: 'local' as const, target: this.target };
   }
 
   async login(email: string, password: string): Promise<SessionInfo> {
-    this.init();
-    const db = getDb();
-    const cleaned = email.trim().toLowerCase();
-    const row = db
-      .prepare('SELECT id, email, display_name, password_hash, role, is_active FROM users WHERE email = ?')
-      .get(cleaned) as
-      | {
-          id: number;
-          email: string;
-          display_name: string;
-          password_hash: string;
-          role: 'admin' | 'writer';
-          is_active: number;
-        }
-      | undefined;
+    await this.init();
+    const row = await findUserForLoginByEmail(email);
 
     if (!row || !verifyPassword(password, row.password_hash)) {
       throw new CliError('UNAUTHORIZED', 'Email hoặc mật khẩu không chính xác.', 3);
     }
-    if (row.is_active !== 1) {
+    if (row.is_active !== 1 && row.is_active !== true) {
       throw new CliError('FORBIDDEN', 'Tài khoản này đã bị tạm khóa.', 3);
     }
 
-    const { token } = createSession(row.id);
+    const { token } = await createSession(Number(row.id));
     const session: SessionInfo = {
       url: `http://localhost:${PORT}`,
       token,
       user: {
-        id: row.id,
+        id: Number(row.id),
         email: row.email,
         displayName: row.display_name,
         role: row.role,
@@ -576,17 +564,17 @@ class LocalCmsClient implements CmsClient {
   }
 
   async logout(): Promise<void> {
-    this.init();
+    await this.init();
     const saved = readSessionFile(this.sessionFile);
     if (saved?.token) {
-      deleteSession(saved.token);
+      await deleteSession(saved.token);
     }
     clearSessionFile(this.sessionFile);
   }
 
   async getContext(section?: CmsSectionType): Promise<EditorialContextPayload> {
-    this.init();
-    const stats = getCmsStatsAndContext(section);
+    await this.init();
+    const stats = await getCmsStatsAndContext(section);
     return {
       schema: EDITORIAL_SCHEMA,
       editorialGuidelines: EDITORIAL_GUIDELINES,
@@ -595,7 +583,7 @@ class LocalCmsClient implements CmsClient {
   }
 
   async listPublicPosts(lang: Language, section?: CmsSectionType): Promise<CmsPostPublic[]> {
-    this.init();
+    await this.init();
     return listPublicPosts(lang, section);
   }
 
@@ -604,10 +592,10 @@ class LocalCmsClient implements CmsClient {
     lang: Language,
     preview = false
   ): Promise<{ post: CmsPostPublic; related: CmsPostPublic[] }> {
-    this.init();
+    await this.init();
     try {
-      const actor = preview ? this.resolveActor() : undefined;
-      return getPublicPostBySlug(slug, lang, preview, actor);
+      const actor = preview ? await this.resolveActor() : undefined;
+      return await getPublicPostBySlug(slug, lang, preview, actor);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -620,7 +608,7 @@ class LocalCmsClient implements CmsClient {
     slug?: string;
   }): Promise<CmsPostAdmin[]> {
     try {
-      return listAdminPosts(this.resolveActor(), filters);
+      return await listAdminPosts(await this.resolveActor(), filters);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -628,7 +616,7 @@ class LocalCmsClient implements CmsClient {
 
   async getAdminPost(idOrSlug: string | number): Promise<CmsPostAdmin> {
     try {
-      return getAdminPostByIdOrSlug(this.resolveActor(), idOrSlug);
+      return await getAdminPostByIdOrSlug(await this.resolveActor(), idOrSlug);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -636,7 +624,7 @@ class LocalCmsClient implements CmsClient {
 
   async createPost(payload: Record<string, unknown>): Promise<CmsPostAdmin> {
     try {
-      return await createAdminPost(this.resolveActor(), payload);
+      return await createAdminPost(await this.resolveActor(), payload);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -644,7 +632,7 @@ class LocalCmsClient implements CmsClient {
 
   async updatePost(id: number, payload: Record<string, unknown>): Promise<CmsPostAdmin> {
     try {
-      return await updateAdminPost(this.resolveActor(), id, payload);
+      return await updateAdminPost(await this.resolveActor(), id, payload);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -652,7 +640,7 @@ class LocalCmsClient implements CmsClient {
 
   async submitPost(id: number): Promise<CmsPostAdmin> {
     try {
-      return submitAdminPost(this.resolveActor(), id);
+      return await submitAdminPost(await this.resolveActor(), id);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -664,7 +652,7 @@ class LocalCmsClient implements CmsClient {
     reviewNote = ''
   ): Promise<CmsPostAdmin> {
     try {
-      return await reviewAdminPost(this.resolveActor(), id, action, reviewNote);
+      return await reviewAdminPost(await this.resolveActor(), id, action, reviewNote);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -672,7 +660,7 @@ class LocalCmsClient implements CmsClient {
 
   async retranslatePost(id: number): Promise<CmsPostAdmin> {
     try {
-      return await retranslateAdminPost(this.resolveActor(), id);
+      return await retranslateAdminPost(await this.resolveActor(), id);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -680,7 +668,7 @@ class LocalCmsClient implements CmsClient {
 
   async saveTranslation(id: number, payload: Record<string, unknown>): Promise<CmsPostAdmin> {
     try {
-      return await saveCustomTranslation(this.resolveActor(), id, payload);
+      return await saveCustomTranslation(await this.resolveActor(), id, payload);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -688,7 +676,7 @@ class LocalCmsClient implements CmsClient {
 
   async reorderPosts(section: CmsSectionType, orderedIds: number[]): Promise<void> {
     try {
-      reorderAdminPosts(this.resolveActor(), section, orderedIds);
+      await reorderAdminPosts(await this.resolveActor(), section, orderedIds);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -696,14 +684,14 @@ class LocalCmsClient implements CmsClient {
 
   async deletePost(id: number): Promise<void> {
     try {
-      deleteAdminPost(this.resolveActor(), id);
+      await deleteAdminPost(await this.resolveActor(), id);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
   }
 
   async uploadImage(filePath: string): Promise<{ url: string; filename: string }> {
-    this.resolveActor();
+    await this.resolveActor();
     const resolved = path.resolve(filePath);
     if (!fs.existsSync(resolved)) {
       throw new CliError('FILE_NOT_FOUND', `Image file not found: ${resolved}`, 2);
@@ -733,7 +721,7 @@ class LocalCmsClient implements CmsClient {
 
   async listUsers(): Promise<CmsUser[]> {
     try {
-      return listUsers(this.resolveActor());
+      return await listUsers(await this.resolveActor());
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -746,7 +734,7 @@ class LocalCmsClient implements CmsClient {
     role: 'admin' | 'writer';
   }): Promise<CmsUser> {
     try {
-      return createUser(this.resolveActor(), payload);
+      return await createUser(await this.resolveActor(), payload);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
@@ -757,7 +745,7 @@ class LocalCmsClient implements CmsClient {
     payload: { isActive?: boolean; role?: 'admin' | 'writer' }
   ): Promise<CmsUser> {
     try {
-      return updateUser(this.resolveActor(), id, payload);
+      return await updateUser(await this.resolveActor(), id, payload);
     } catch (err) {
       mapServiceErrorToCli(err);
     }
