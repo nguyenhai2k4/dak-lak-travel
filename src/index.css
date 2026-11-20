@@ -1,0 +1,523 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-mea: "Mea Culpa", "Cormorant Garamond", cursive;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-dl-forest: #132A1E;
+  --color-dl-overlay: #0F2419;
+  --color-dl-deepForest: #182E22;
+  --color-dl-footerForest: #0D1D14;
+  --color-dl-paper: #F7F3EB;
+  --color-dl-amber: #D48C46;
+  --color-dl-terracotta: #8C3B2B;
+  --color-dl-ink: #1C1917;
+}
+
+/* =========================================================================
+   DESIGN SYSTEM CSS TOKENS & CUSTOM INTERACTION STYLES
+========================================================================= */
+:root {
+  --dl-forest-primary: #132A1E;
+  --dl-hero-overlay: rgba(15, 36, 25, 0.50);
+  --dl-forest-alt: #182E22;
+  --dl-forest-footer: #0D1D14;
+  --dl-paper-warm: #F7F3EB;
+  --dl-amber-accent: #D48C46;
+  --dl-terracotta-accent: #8C3B2B;
+  --dl-font-serif: 'Cormorant Garamond', Georgia, serif;
+  --dl-font-sans: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Thanh cuộn tinh tế đồng bộ bảng màu */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F7F3EB;
+}
+::-webkit-scrollbar-thumb {
+  background: #C7B9A3;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8C3B2B;
+}
+
+/* Kết cấu giấy dó ấm áp cho các phân khu #F7F3EB */
+.do-paper-surface {
+  background-color: #F7F3EB;
+  background-image:
+    radial-gradient(rgba(140, 59, 43, 0.03) 1px, transparent 0),
+    radial-gradient(rgba(19, 42, 30, 0.025) 1px, transparent 0);
+  background-size: 28px 28px;
+  background-position: 0 0, 14px 14px;
+}
+
+/* Họa tiết thổ cẩm Ê Đê chìm tinh tế cho Section 4 (#182E22) — Pure CSS (no SVG) */
+.ede-brocade-bg {
+  background-color: #182E22;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(212, 140, 70, 0.045) 0, rgba(212, 140, 70, 0.045) 1px, transparent 1px, transparent 28px),
+    repeating-linear-gradient(-45deg, rgba(212, 140, 70, 0.045) 0, rgba(212, 140, 70, 0.045) 1px, transparent 1px, transparent 28px);
+}
+
+/* Sticky Header Transition */
+#main-header {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 0.35s ease, backdrop-filter 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+#main-header.header-scrolled {
+  background-color: rgba(19, 42, 30, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(212, 140, 70, 0.22);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.35);
+}
+
+/* Sequential Hero Fade-Up Animations */
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.hero-seq-1 {
+  opacity: 0;
+  animation: heroFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+}
+.hero-seq-2 {
+  opacity: 0;
+  animation: heroFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.35s forwards;
+}
+.hero-seq-3 {
+  opacity: 0;
+  animation: heroFadeUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.65s forwards;
+}
+.hero-seq-4 {
+  opacity: 0;
+  animation: heroFadeUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.95s forwards;
+}
+.hero-seq-5 {
+  opacity: 0;
+  animation: heroFadeUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 1.25s forwards;
+}
+
+/* Glassmorphism Design System Surfaces */
+.glass-card-light {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 252, 246, 0.52) 100%);
+  backdrop-filter: blur(20px) saturate(165%);
+  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 42px -12px rgba(19, 42, 30, 0.09),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+.glass-card-dark {
+  background: linear-gradient(135deg, rgba(19, 42, 30, 0.76) 0%, rgba(13, 29, 20, 0.62) 100%);
+  backdrop-filter: blur(22px) saturate(175%);
+  -webkit-backdrop-filter: blur(22px) saturate(175%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 22px 48px -12px rgba(0, 0, 0, 0.42),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+}
+
+.glass-panel-deep {
+  background: linear-gradient(145deg, rgba(24, 46, 34, 0.64) 0%, rgba(13, 29, 20, 0.54) 100%);
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 28px 64px -16px rgba(0, 0, 0, 0.52),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.24);
+}
+
+.glass-subcard-dark {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Section 3: 5-Second Auto Border Highlight Glow (#D48C46) */
+.bento-card {
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.45s ease,
+              box-shadow 0.45s ease,
+              background-color 0.45s ease;
+}
+.bento-card.bento-active-glow {
+  border-color: #D48C46 !important;
+  transform: translateY(-5px);
+  box-shadow: 0 22px 46px -10px rgba(212, 140, 70, 0.38),
+              0 0 0 2px rgba(212, 140, 70, 0.85),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+.bento-card.bento-culture-focus {
+  border-color: #8C3B2B !important;
+  transform: translateY(-5px);
+  box-shadow: 0 22px 46px -10px rgba(140, 59, 43, 0.38),
+              0 0 0 2px #8C3B2B;
+}
+
+/* Animated Route Dash on Interactive Map */
+@keyframes routeFlow {
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+.map-route-animated {
+  animation: routeFlow 2.2s linear infinite;
+}
+
+/* Section 5: Horizontal Floating Track Cards */
+.drift-card-art {
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.drift-card:hover .drift-card-art {
+  transform: scale(1.05);
+}
+
+/* Section 6: Overlapping Season Card 3D Shadow */
+.season-overlap-shadow {
+  box-shadow: 0 28px 60px -15px rgba(13, 29, 20, 0.55),
+              0 8px 24px -6px rgba(19, 42, 30, 0.35);
+}
+
+/* Drop-cap kiểu tạp chí văn hóa cho bài đọc chuyên sâu */
+.editorial-dropcap::first-letter {
+  float: left;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 4.1rem;
+  line-height: 0.8;
+  padding-top: 0.25rem;
+  padding-right: 0.7rem;
+  padding-bottom: 0.1rem;
+  font-weight: 700;
+  color: #8C3B2B;
+}
+
+@keyframes panelReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-panel-reveal {
+  animation: panelReveal 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* AI Copilot Thinking Animations (State 1 & Floating Popup) */
+@keyframes copilotOrbitSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes copilotPulseGlow {
+  0%, 100% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 rgba(212, 140, 70, 0.45);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 8px rgba(212, 140, 70, 0);
+  }
+}
+@keyframes thinkingDotBounce {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+.ai-copilot-orbit {
+  animation: copilotOrbitSpin 3.6s linear infinite;
+}
+.ai-copilot-core {
+  animation: copilotPulseGlow 1.8s ease-in-out infinite;
+}
+.ai-thinking-dot-1 { animation: thinkingDotBounce 1.2s ease-in-out 0s infinite; }
+.ai-thinking-dot-2 { animation: thinkingDotBounce 1.2s ease-in-out 0.2s infinite; }
+.ai-thinking-dot-3 { animation: thinkingDotBounce 1.2s ease-in-out 0.4s infinite; }
+
+/* Smooth Chat & State Transitions */
+@keyframes chatBubbleSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes statusTextSwap {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-chat-bubble {
+  animation: chatBubbleSlideUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-status-swap {
+  animation: statusTextSwap 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Transparent Scrollbar for Borderless Inline Chat Thread */
+.chat-thread-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-thread-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-thread-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(212, 140, 70, 0.42);
+  border-radius: 9999px;
+}
+.chat-thread-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 140, 70, 0.75);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Split-Screen Travel Consulting Canvas (Light Editorial Pane & Map Controls) */
+.canvas-light-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.canvas-light-scrollbar::-webkit-scrollbar-track {
+  background: #F5F2EC;
+}
+.canvas-light-scrollbar::-webkit-scrollbar-thumb {
+  background: #D6CFC2;
+  border-radius: 9999px;
+}
+.canvas-light-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #B0A594;
+}
+.stop-card-dragging {
+  opacity: 0.45;
+  transform: scale(0.985);
+}
+.stop-drop-target {
+  box-shadow: 0 -2px 0 0 #D48C46;
+}
+@keyframes stopFlash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 140, 70, 0); }
+  35% { box-shadow: 0 0 0 4px rgba(212, 140, 70, 0.45); }
+}
+.stop-flash-highlight {
+  animation: stopFlash 1.2s ease-out;
+}
+
+/* MapLibre GL Interactive Map & Custom Marker Styles */
+.daklak-maplibre-container,
+.daklak-maplibre-container .maplibregl-map {
+  width: 100%;
+  height: 100%;
+  background: #edeae2;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.daklak-maplibre-container .maplibregl-ctrl-bottom-right {
+  bottom: 52px;
+  right: 4px;
+}
+.daklak-maplibre-container .maplibregl-ctrl-group {
+  border-radius: 12px !important;
+  border: 1px solid rgba(231, 229, 228, 0.95) !important;
+  box-shadow: 0 6px 18px rgba(19, 42, 30, 0.12) !important;
+  overflow: hidden;
+}
+.daklak-maplibre-container .maplibregl-ctrl-group button {
+  width: 34px !important;
+  height: 34px !important;
+}
+.daklak-maplibre-container .maplibregl-ctrl-scale {
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(6px);
+  border-color: #132A1E !important;
+  color: #132A1E !important;
+  border-radius: 6px;
+  font-size: 10px !important;
+  font-weight: 600;
+  padding: 1px 6px;
+}
+.daklak-maplibre-container .maplibregl-ctrl-attrib {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.86) !important;
+  backdrop-filter: blur(6px);
+  border-top-left-radius: 8px;
+}
+.daklak-pin-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.daklak-pin-halo {
+  position: absolute;
+  top: -6px;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  animation: copilotPulseGlow 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.daklak-pin-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: #ffffff;
+  border: 2.5px solid #ffffff;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.daklak-pin-stem {
+  width: 0;
+  height: 0;
+  margin-top: -2px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.22));
+}
+.daklak-pin-wrapper:hover .daklak-pin-badge {
+  transform: scale(1.1);
+}
+.daklak-pin-label {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.daklak-pin-wrapper:hover .daklak-pin-label,
+.daklak-pin-wrapper.is-selected .daklak-pin-label {
+  opacity: 1;
+}
+
+/* =========================================================================
+   BLOG FULL-PAGE & TIPTAP RICH-TEXT CONTENT STYLES
+   ========================================================================= */
+.blog-rich-content {
+  color: rgba(28, 25, 23, 0.92);
+  font-size: 1.05rem;
+  line-height: 1.85;
+}
+.blog-rich-content > p:first-of-type::first-letter {
+  font-family: var(--dl-font-serif);
+  float: left;
+  font-size: 3.4rem;
+  line-height: 0.85;
+  padding-right: 0.65rem;
+  padding-top: 0.2rem;
+  font-weight: 700;
+  color: #8C3B2B;
+}
+.blog-rich-content p {
+  margin-bottom: 1.25rem;
+}
+.blog-rich-content h2 {
+  font-family: var(--dl-font-serif);
+  font-size: 1.85rem;
+  line-height: 1.22;
+  font-weight: 700;
+  color: #132A1E;
+  margin-top: 2.2rem;
+  margin-bottom: 0.85rem;
+}
+.blog-rich-content h3 {
+  font-family: var(--dl-font-serif);
+  font-size: 1.45rem;
+  line-height: 1.28;
+  font-weight: 700;
+  color: #132A1E;
+  margin-top: 1.75rem;
+  margin-bottom: 0.65rem;
+}
+.blog-rich-content ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.blog-rich-content ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.blog-rich-content li {
+  margin-bottom: 0.4rem;
+}
+.blog-rich-content blockquote {
+  border-left: 3px solid #8C3B2B;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.95rem 1.25rem;
+  border-radius: 0 0.75rem 0.75rem 0;
+  font-family: var(--dl-font-serif);
+  font-style: italic;
+  font-size: 1.25rem;
+  color: #132A1E;
+  margin: 1.5rem 0;
+}
+.blog-rich-content img {
+  width: 100%;
+  max-height: 520px;
+  object-fit: cover;
+  border-radius: 1rem;
+  border: 1px solid #E5DEC9;
+  margin: 1.5rem 0;
+}
+.blog-rich-content a {
+  color: #8C3B2B;
+  text-decoration: underline;
+  font-weight: 600;
+}
+.blog-rich-content hr {
+  border: none;
+  border-top: 1px solid #D9CEB8;
+  margin: 2rem 0;
+}
+
+.tiptap-editor-content .ProseMirror {
+  min-height: 320px;
+  outline: none;
+  padding: 1.25rem;
+}
+.tiptap-editor-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #a8a29e;
+  pointer-events: none;
+  height: 0;
+}

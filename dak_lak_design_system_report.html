@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design System Report — Website Du Lịch Tỉnh Đắk Lắk</title>
+
+  <!-- Google Fonts hỗ trợ tiếng Việt đầy đủ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            serif: ['"Cormorant Garamond"', 'serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            dl: {
+              espresso: '#231712',
+              forest: '#1B4332',
+              crema: '#B08968',
+              terracotta: '#9A3412',
+              bronze: '#D97706',
+              crisp: '#F8F9FA',
+              parchment: '#FAF6F0',
+              card: '#FFFFFF',
+              border: '#E5DEC9',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Tùy chỉnh thanh cuộn & hiệu ứng tinh tế */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F8F9FA;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D6CEC0;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #B08968;
+    }
+
+    /* Drop-cap cho bài viết chiều sâu (Option 1) */
+    .editorial-dropcap::first-letter {
+      float: left;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3.75rem;
+      line-height: 0.82;
+      padding-top: 0.25rem;
+      padding-right: 0.65rem;
+      padding-bottom: 0.1rem;
+      font-weight: 700;
+      color: #9A3412;
+    }
+
+    /* Hiệu ứng chuyển đổi nội dung bài viết */
+    .fade-in-story {
+      animation: fadeInStory 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes fadeInStory {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body class="bg-[#F8F9FA] text-[#231712] font-sans antialiased selection:bg-[#9A3412] selection:text-white">
+
+  <!-- Toast Thông Báo Copy (Không dùng alert) -->
+  <div id="copy-toast" class="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 bg-[#231712] text-white text-xs font-medium px-4 py-3 rounded-xl shadow-xl border border-white/10 translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <span class="w-2 h-2 rounded-full bg-[#D97706]"></span>
+    <span id="copy-toast-text">Đã sao chép mã</span>
+  </div>
+
+  <!-- Thanh Điều Hướng Dính (Sticky Top Navigation) -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-stone-200/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <!-- Nhận diện tài liệu -->
+      <div class="flex items-center gap-3 shrink-0">
+        <div class="w-8 h-8 rounded-lg bg-[#231712] flex items-center justify-center text-[#D97706] font-serif font-bold text-lg shadow-sm">
+          ĐL
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm tracking-tight text-[#231712]">ĐẮK LẮK TOURISM</span>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-[#FAF6F0] text-[#9A3412] border border-[#E5DEC9]">
+              DS v1.0
+            </span>
+          </div>
+          <p class="text-[11px] text-stone-500 hidden md:block">Hệ thống Thiết kế Kép: Thủ Phủ Cà Phê &amp; Di Sản Bản Địa</p>
+        </div>
+      </div>
+
+      <!-- Liên kết chuyển phần nhanh -->
+      <nav aria-label="Điều hướng Design System" class="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
+        <a href="#strategy" class="nav-link px-3 py-2 rounded-lg text-xs font-medium text-stone-600 hover:text-[#231712] hover:bg-stone-100 whitespace-nowrap transition-colors">00. Chiến lược</a>
+        <a href="#colors" class="nav-link px-3 py-2 rounded-lg text-xs font-medium text-stone-600 hover:text-[#231712] hover:bg-stone-100 whitespace-nowrap transition-colors">01. Màu sắc</a>
+        <a href="#typography" class="nav-link px-3 py-2 rounded-lg text-xs font-medium text-stone-600 hover:text-[#231712] hover:bg-stone-100 whitespace-nowrap transition-colors">02. Typography</a>
+        <a href="#grid-motifs" class="nav-link px-3 py-2 rounded-lg text-xs font-medium text-stone-600 hover:text-[#231712] hover:bg-stone-100 whitespace-nowrap transition-colors">03. Bố cục &amp; Họa tiết</a>
+        <a href="#live-bridge" class="nav-link px-3 py-2 rounded-lg text-xs font-semibold text-[#1B4332] bg-[#1B4332]/10 hover:bg-[#1B4332]/15 whitespace-nowrap transition-colors">04. Live Bridge</a>
+        <a href="#tokens" class="nav-link px-3 py-2 rounded-lg text-xs font-medium text-stone-600 hover:text-[#231712] hover:bg-stone-100 whitespace-nowrap transition-colors">05. Tokens</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-16 sm:space-y-20">
+
+    <!-- HERO & PHẦN 00: CẦU NỐI CHIẾN LƯỢC (THE HOOK -> THE SOUL) -->
+    <section id="strategy" class="scroll-mt-24 space-y-8">
+      <div class="max-w-3xl space-y-3">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-stone-200 shadow-xs text-xs font-medium text-stone-600">
+          <span class="w-2 h-2 rounded-full bg-[#1B4332]"></span>
+          <span>Kiến trúc Trải nghiệm Du lịch Đắk Lắk</span>
+        </div>
+        <h1 class="text-3xl sm:text-4xl lg:text-[42px] font-bold tracking-tight text-[#231712] leading-[1.15]">
+          Từ Thủ Phủ Cà Phê đến Chiều Sâu Di Sản Đại Ngàn
+        </h1>
+        <p class="text-sm sm:text-base text-stone-600 leading-relaxed">
+          Giải quyết bài toán định vị: Dùng lợi thế nhận diện độc bản của <strong class="text-[#231712]">Buôn Ma Thuột &amp; Thiên nhiên (Option 2)</strong> làm cửa ngõ thu hút, sau đó dẫn dắt du khách bước vào không gian kể chuyện chuyên sâu về <strong class="text-[#9A3412]">Văn hóa Mẫu hệ Ê Đê &amp; Hồ Lắk (Option 1)</strong>.
+        </p>
+      </div>
+
+      <!-- Sơ đồ trực quan 2 bước: The Hook -> The Soul -->
+      <div class="bg-white rounded-2xl border border-stone-200/90 p-5 sm:p-8 shadow-xs">
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-stone-100">
+          <span class="text-xs font-mono uppercase tracking-wider text-stone-400">Mô hình Chuyển đổi Trải nghiệm (Dual-Layer UX Flow)</span>
+          <span class="text-xs font-medium text-[#1B4332] bg-[#1B4332]/10 px-2.5 py-1 rounded-md">2 Lớp • 1 Hệ Thống</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-11 gap-6 items-stretch">
+          <!-- Bước 1: The Hook (Option 2) -->
+          <div class="lg:col-span-5 rounded-2xl bg-[#F8F9FA] border border-stone-200 p-5 sm:p-6 flex flex-col justify-between">
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-1 rounded-lg bg-[#1B4332] text-white text-[11px] font-semibold tracking-wide uppercase">
+                  Bước 1 • Mỏ Neo (Option 2)
+                </span>
+                <span class="font-mono text-xs text-stone-400">THE HOOK</span>
+              </div>
+              <h2 class="text-lg font-bold text-[#231712]">Thủ Phủ Cà Phê &amp; Khám Phá Nhanh</h2>
+              <p class="text-xs text-stone-600 leading-relaxed">
+                Tạo ấn tượng tức thì bằng các biểu tượng chỉ có tại Đắk Lắk, tối ưu khả năng tra cứu lịch trình, khoảng cách và điểm check-in.
+              </p>
+              <div class="flex flex-wrap gap-2 pt-1">
+                <span class="px-2.5 py-1 rounded-md bg-white border border-stone-200 text-xs font-medium text-[#231712]">Cà phê Buôn Ma Thuột</span>
+                <span class="px-2.5 py-1 rounded-md bg-white border border-stone-200 text-xs font-medium text-[#231712]">Thác Dray Nur</span>
+                <span class="px-2.5 py-1 rounded-md bg-white border border-stone-200 text-xs font-medium text-[#231712]">Bảo tàng Thế giới Cà phê</span>
+                <span class="px-2.5 py-1 rounded-md bg-white border border-stone-200 text-xs font-medium text-[#1B4332]">Bento Grid UI</span>
+              </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-stone-200/80 flex items-center justify-between text-xs text-stone-500">
+              <span>Font: <strong class="text-[#231712]">Plus Jakarta Sans</strong></span>
+              <span>Nền: <strong class="text-[#231712]">#F8F9FA</strong></span>
+            </div>
+          </div>
+
+          <!-- Cầu nối chuyển tiếp ở giữa -->
+          <div class="lg:col-span-1 flex flex-col items-center justify-center py-2">
+            <div class="w-10 h-10 rounded-full bg-[#FAF6F0] border border-[#E5DEC9] flex items-center justify-center text-[#9A3412] shadow-xs rotate-90 lg:rotate-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+            </div>
+            <span class="mt-2 text-[10px] font-mono uppercase tracking-widest text-stone-400 text-center">Story<br class="hidden lg:inline"/>Bridge</span>
+          </div>
+
+          <!-- Bước 2: The Soul (Option 1) -->
+          <div class="lg:col-span-5 rounded-2xl bg-[#FAF6F0] border border-[#E5DEC9] p-5 sm:p-6 flex flex-col justify-between">
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-1 rounded-lg bg-[#9A3412] text-white text-[11px] font-semibold tracking-wide uppercase">
+                  Bước 2 • Chiều Sâu (Option 1)
+                </span>
+                <span class="font-mono text-xs text-[#9A3412]/70">THE SOUL</span>
+              </div>
+              <h2 class="font-serif text-2xl font-bold text-[#231712] leading-snug">Bản Sắc Di Sản &amp; Tạp Chí Kể Chuyện</h2>
+              <p class="text-xs text-stone-700 leading-relaxed">
+                Khi du khách đã quan tâm điểm đến, mở ra không gian đọc chậm rãi để giải mã chiều sâu văn hóa bản địa độc đáo của Đắk Lắk.
+              </p>
+              <div class="flex flex-wrap gap-2 pt-1">
+                <span class="px-2.5 py-1 rounded-md bg-white/80 border border-[#E5DEC9] text-xs font-medium text-[#231712]">Nhà Dài Ê Đê</span>
+                <span class="px-2.5 py-1 rounded-md bg-white/80 border border-[#E5DEC9] text-xs font-medium text-[#231712]">Văn hóa Mẫu hệ</span>
+                <span class="px-2.5 py-1 rounded-md bg-white/80 border border-[#E5DEC9] text-xs font-medium text-[#231712]">Thuyền độc mộc Hồ Lắk</span>
+                <span class="px-2.5 py-1 rounded-md bg-white/80 border border-[#E5DEC9] text-xs font-medium text-[#9A3412]">Sử thi Đam San</span>
+              </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-[#E5DEC9] flex items-center justify-between text-xs text-stone-600">
+              <span>Font: <strong class="font-serif text-sm text-[#231712]">Cormorant Garamond</strong></span>
+              <span>Nền: <strong class="text-[#231712]">#FAF6F0</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHẦN 01: HỆ THỐNG MÀU SẮC KÉP (DUAL-LAYER COLOR PALETTE) -->
+    <section id="colors" class="scroll-mt-24 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+        <div>
+          <span class="font-mono text-xs text-[#9A3412] font-medium">01 / COLOR SYSTEM</span>
+          <h2 class="text-2xl font-bold text-[#231712] tracking-tight mt-0.5">Hệ Thống Màu Sắc Kép</h2>
+        </div>
+        <p class="text-xs text-stone-500">Nhấp vào từng thẻ màu để sao chép nhanh mã HEX.</p>
+      </div>
+
+      <div class="space-y-8">
+        <!-- Nhóm 1: Anchor Colors (Option 2) -->
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#1B4332]"></span>
+            <h3 class="text-sm font-bold text-[#231712]">Nhóm 1: Anchor Colors (Option 2 — Cà Phê &amp; Thiên Nhiên)</h3>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Roasted Espresso -->
+            <button type="button" onclick="copyHex('#231712', 'Roasted Espresso')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-[#231712] transition-all shadow-xs focus:outline-none">
+              <div class="h-24 bg-[#231712] p-4 flex items-end justify-between">
+                <span class="text-[11px] font-mono text-white/80 bg-white/10 px-2 py-0.5 rounded">Primary Dark</span>
+                <span class="text-xs font-mono text-white opacity-0 group-hover:opacity-100 transition-opacity">Copy HEX</span>
+              </div>
+              <div class="p-4">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-sm text-[#231712]">Roasted Espresso</span>
+                  <span class="font-mono text-xs font-medium text-stone-600">#231712</span>
+                </div>
+                <p class="text-xs text-stone-500 mt-1">Chữ tiêu đề chính, thanh điều hướng tối, chân trang.</p>
+              </div>
+            </button>
+
+            <!-- Yok Đôn Forest -->
+            <button type="button" onclick="copyHex('#1B4332', 'Yok Đôn Forest')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-[#1B4332] transition-all shadow-xs focus:outline-none">
+              <div class="h-24 bg-[#1B4332] p-4 flex items-end justify-between">
+                <span class="text-[11px] font-mono text-white/90 bg-white/15 px-2 py-0.5 rounded">Primary Action</span>
+                <span class="text-xs font-mono text-white opacity-0 group-hover:opacity-100 transition-opacity">Copy HEX</span>
+              </div>
+              <div class="p-4">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-sm text-[#231712]">Yok Đôn Forest</span>
+                  <span class="font-mono text-xs font-medium text-stone-600">#1B4332</span>
+                </div>
+                <p class="text-xs text-stone-500 mt-1">Nút đặt lịch trình, bộ lọc sinh thái, trạng thái hoạt động.</p>
+              </div>
+            </button>
+
+            <!-- Coffee Crema -->
+            <button type="button" onclick="copyHex('#B08968', 'Coffee Crema')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-[#B08968] transition-all shadow-xs focus:outline-none">
+              <div class="h-24 bg-[#B08968] p-4 flex items-end justify-between">
+                <span class="text-[11px] font-mono text-white bg-black/20 px-2 py-0.5 rounded">Warm Secondary</span>
+                <span class="text-xs font-mono text-white opacity-0 group-hover:opacity-100 transition-opacity">Copy HEX</span>
+              </div>
+              <div class="p-4">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-sm text-[#231712]">Coffee Crema</span>
+                  <span class="font-mono text-xs font-medium text-stone-600">#B08968</span>
+                </div>
+                <p class="text-xs text-stone-500 mt-1">Nhãn cà phê đặc sản, biểu tượng phụ, điểm nhấn ấm.</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Nhóm 2 & Nhóm 3 trên cùng lưới cân đối -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Nhóm 2: Editorial Accent Colors (Option 1) -->
+          <div class="lg:col-span-5 space-y-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#9A3412]"></span>
+              <h3 class="text-sm font-bold text-[#231712]">Nhóm 2: Editorial Accents (Option 1 — Di Sản)</h3>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Basalt Terracotta -->
+              <button type="button" onclick="copyHex('#9A3412', 'Basalt Terracotta')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-[#9A3412] transition-all shadow-xs focus:outline-none">
+                <div class="h-20 bg-[#9A3412] p-3.5 flex items-end justify-between">
+                  <span class="text-[10px] font-mono text-white/90 bg-white/15 px-2 py-0.5 rounded">Heritage Lead</span>
+                  <span class="text-[11px] font-mono text-white opacity-0 group-hover:opacity-100 transition-opacity">Copy</span>
+                </div>
+                <div class="p-3.5">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-xs text-[#231712]">Basalt Terracotta</span>
+                    <span class="font-mono text-[11px] text-stone-600">#9A3412</span>
+                  </div>
+                  <p class="text-[11px] text-stone-500 mt-1">Drop-cap, trích dẫn sử thi, nút mở bài sâu.</p>
+                </div>
+              </button>
+
+              <!-- Gong Bronze -->
+              <button type="button" onclick="copyHex('#D97706', 'Gong Bronze')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-[#D97706] transition-all shadow-xs focus:outline-none">
+                <div class="h-20 bg-[#D97706] p-3.5 flex items-end justify-between">
+                  <span class="text-[10px] font-mono text-white bg-black/20 px-2 py-0.5 rounded">Cultural Spark</span>
+                  <span class="text-[11px] font-mono text-white opacity-0 group-hover:opacity-100 transition-opacity">Copy</span>
+                </div>
+                <div class="p-3.5">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-xs text-[#231712]">Gong Bronze</span>
+                    <span class="font-mono text-[11px] text-stone-600">#D97706</span>
+                  </div>
+                  <p class="text-[11px] text-stone-500 mt-1">Đường viền thổ cẩm mảnh, huy hiệu di sản.</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Nhóm 3: Surfaces & Neutrals -->
+          <div class="lg:col-span-7 space-y-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-stone-400"></span>
+              <h3 class="text-sm font-bold text-[#231712]">Nhóm 3: Surfaces &amp; Neutrals (Chuyển Đổi Bề Mặt)</h3>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <!-- Discovery Crisp -->
+              <button type="button" onclick="copyHex('#F8F9FA', 'Discovery Crisp')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-stone-400 transition-all shadow-xs focus:outline-none">
+                <div class="h-20 bg-[#F8F9FA] border-b border-stone-200/80 p-3 flex items-end justify-between">
+                  <span class="text-[10px] font-mono text-stone-500">Nền Opt 2</span>
+                  <span class="text-[10px] font-mono text-stone-700 opacity-0 group-hover:opacity-100">Copy</span>
+                </div>
+                <div class="p-3">
+                  <div class="font-bold text-xs text-[#231712]">Discovery Crisp</div>
+                  <div class="font-mono text-[11px] text-stone-500 mt-0.5">#F8F9FA</div>
+                </div>
+              </button>
+
+              <!-- Heritage Parchment -->
+              <button type="button" onclick="copyHex('#FAF6F0', 'Heritage Parchment')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-[#B08968] transition-all shadow-xs focus:outline-none">
+                <div class="h-20 bg-[#FAF6F0] border-b border-[#E5DEC9] p-3 flex items-end justify-between">
+                  <span class="text-[10px] font-mono text-[#9A3412]">Nền Opt 1</span>
+                  <span class="text-[10px] font-mono text-[#9A3412] opacity-0 group-hover:opacity-100">Copy</span>
+                </div>
+                <div class="p-3">
+                  <div class="font-bold text-xs text-[#231712]">Parchment</div>
+                  <div class="font-mono text-[11px] text-stone-500 mt-0.5">#FAF6F0</div>
+                </div>
+              </button>
+
+              <!-- Pure Card -->
+              <button type="button" onclick="copyHex('#FFFFFF', 'Pure Card')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-stone-400 transition-all shadow-xs focus:outline-none">
+                <div class="h-20 bg-[#FFFFFF] border-b border-stone-100 p-3 flex items-end justify-between">
+                  <span class="text-[10px] font-mono text-stone-400">Card UI</span>
+                  <span class="text-[10px] font-mono text-stone-700 opacity-0 group-hover:opacity-100">Copy</span>
+                </div>
+                <div class="p-3">
+                  <div class="font-bold text-xs text-[#231712]">Pure Card</div>
+                  <div class="font-mono text-[11px] text-stone-500 mt-0.5">#FFFFFF</div>
+                </div>
+              </button>
+
+              <!-- Warm Border -->
+              <button type="button" onclick="copyHex('#E5DEC9', 'Warm Border')" class="group text-left bg-white rounded-2xl border border-stone-200 overflow-hidden hover:border-[#B08968] transition-all shadow-xs focus:outline-none">
+                <div class="h-20 bg-[#E5DEC9] p-3 flex items-end justify-between">
+                  <span class="text-[10px] font-mono text-[#231712]/70">Divider</span>
+                  <span class="text-[10px] font-mono text-[#231712] opacity-0 group-hover:opacity-100">Copy</span>
+                </div>
+                <div class="p-3">
+                  <div class="font-bold text-xs text-[#231712]">Warm Border</div>
+                  <div class="font-mono text-[11px] text-stone-500 mt-0.5">#E5DEC9</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHẦN 02: HỆ THỐNG KIỂU CHỮ (DUAL-VOICE TYPOGRAPHY) -->
+    <section id="typography" class="scroll-mt-24 space-y-6">
+      <div>
+        <span class="font-mono text-xs text-[#9A3412] font-medium">02 / TYPOGRAPHY SYSTEM</span>
+        <h2 class="text-2xl font-bold text-[#231712] tracking-tight mt-0.5">Hệ Thống Kiểu Chữ Hai Giọng Điệu (Dual-Voice)</h2>
+      </div>
+
+      <!-- Phân tách 2 vai trò font -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl border border-stone-200 p-6 flex items-start justify-between gap-4">
+          <div class="space-y-2">
+            <span class="inline-block px-2.5 py-0.5 rounded-md bg-[#1B4332]/10 text-[#1B4332] text-xs font-semibold">Giọng UI Hiện Đại • Option 2</span>
+            <h3 class="text-2xl font-bold text-[#231712]">Plus Jakarta Sans</h3>
+            <p class="text-xs text-stone-600 leading-relaxed">
+              Độ mở ký tự rộng, sắc nét trên màn hình di động. Dùng cho thanh điều hướng, bộ lọc điểm đến, thẻ Bento Grid và thông số lịch trình.
+            </p>
+          </div>
+          <div class="text-4xl font-bold text-stone-200 select-none shrink-0">Aa</div>
+        </div>
+
+        <div class="bg-[#FAF6F0] rounded-2xl border border-[#E5DEC9] p-6 flex items-start justify-between gap-4">
+          <div class="space-y-2">
+            <span class="inline-block px-2.5 py-0.5 rounded-md bg-[#9A3412]/10 text-[#9A3412] text-xs font-semibold">Giọng Kể Chuyện Chiều Sâu • Option 1</span>
+            <h3 class="font-serif text-3xl font-bold text-[#231712]">Cormorant Garamond</h3>
+            <p class="text-xs text-stone-700 leading-relaxed">
+              Nét chân thanh mảnh giàu chất văn học và tạp chí di sản. Dùng cho tiêu đề bài khám phá văn hóa, trích dẫn sử thi và dẫn nhập câu chuyện.
+            </p>
+          </div>
+          <div class="font-serif text-5xl font-bold text-[#E5DEC9] select-none shrink-0">Aa</div>
+        </div>
+      </div>
+
+      <!-- Bảng Type Scale trực quan -->
+      <div class="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs">
+        <div class="divide-y divide-stone-100">
+          <!-- Display H1 -->
+          <div class="p-5 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-3 items-baseline">
+            <div class="lg:col-span-3">
+              <span class="text-xs font-bold text-[#231712] block">Display H1 (Anchor)</span>
+              <span class="font-mono text-[11px] text-stone-400">Jakarta Sans • 40px / 1.15 • 700</span>
+            </div>
+            <div class="lg:col-span-9 text-2xl sm:text-[36px] font-bold text-[#231712] leading-[1.15] tracking-tight">
+              Buôn Ma Thuột — Thủ Phủ Cà Phê Thế Giới
+            </div>
+          </div>
+
+          <!-- Editorial Feature Title -->
+          <div class="p-5 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-3 items-baseline bg-[#FAF6F0]/60">
+            <div class="lg:col-span-3">
+              <span class="text-xs font-bold text-[#9A3412] block">Editorial Feature Title</span>
+              <span class="font-mono text-[11px] text-stone-500">Cormorant • 34px / 1.2 • 700</span>
+            </div>
+            <div class="lg:col-span-9 font-serif text-2xl sm:text-[34px] font-bold text-[#231712] leading-[1.2]">
+              Nhịp Cầu Thang Đực – Cái Trong Ngôi Nhà Dài Của Người Ê Đê
+            </div>
+          </div>
+
+          <!-- Section H2 -->
+          <div class="p-5 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-3 items-baseline">
+            <div class="lg:col-span-3">
+              <span class="text-xs font-bold text-[#231712] block">Section H2</span>
+              <span class="font-mono text-[11px] text-stone-400">Jakarta Sans • 24px / 1.3 • 700</span>
+            </div>
+            <div class="lg:col-span-9 text-xl sm:text-[24px] font-bold text-[#231712] leading-[1.3]">
+              Hành trình 48 giờ khám phá cụm thác Dray Nur &amp; Hồ Lắk
+            </div>
+          </div>
+
+          <!-- UI Body -->
+          <div class="p-5 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-3 items-baseline">
+            <div class="lg:col-span-3">
+              <span class="text-xs font-bold text-[#231712] block">UI Body (Tra cứu)</span>
+              <span class="font-mono text-[11px] text-stone-400">Jakarta Sans • 15px / 1.6 • 400</span>
+            </div>
+            <div class="lg:col-span-9 text-[15px] text-stone-600 leading-[1.6]">
+              Cách trung tâm Buôn Ma Thuột 25 km về phía Nam, thác Dray Nur nối liền hai bờ Đắk Lắk và Đắk Nông qua dòng sông Sêrêpốk chảy ngược hùng vĩ.
+            </div>
+          </div>
+
+          <!-- Editorial Long-form -->
+          <div class="p-5 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-3 items-baseline bg-[#FAF6F0]/60">
+            <div class="lg:col-span-3">
+              <span class="text-xs font-bold text-[#9A3412] block">Editorial Pull-Quote</span>
+              <span class="font-mono text-[11px] text-stone-500">Cormorant Italic • 22px / 1.45</span>
+            </div>
+            <div class="lg:col-span-9 font-serif italic text-xl sm:text-[22px] text-[#231712] leading-[1.45]">
+              “Mỗi khi một người con gái Ê Đê lập gia đình, ngôi nhà dài lại được nối thêm một nhịp xà, như dòng chảy mẫu hệ bền bỉ qua bao thế hệ.”
+            </div>
+          </div>
+
+          <!-- Micro Tag -->
+          <div class="p-5 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+            <div class="lg:col-span-3">
+              <span class="text-xs font-bold text-[#231712] block">Micro Tag &amp; Metadata</span>
+              <span class="font-mono text-[11px] text-stone-400">JetBrains Mono • 11px • 500</span>
+            </div>
+            <div class="lg:col-span-9 flex flex-wrap gap-2">
+              <span class="font-mono text-[11px] font-medium px-2.5 py-1 rounded-md bg-stone-100 text-stone-700">12.6667° N, 108.0383° E</span>
+              <span class="font-mono text-[11px] font-medium px-2.5 py-1 rounded-md bg-[#1B4332]/10 text-[#1B4332]">MÙA KHÔ • THÁNG 11 – THÁNG 4</span>
+              <span class="font-mono text-[11px] font-medium px-2.5 py-1 rounded-md bg-[#FAF6F0] border border-[#E5DEC9] text-[#9A3412]">DI SẢN VĂN HÓA PHI VẬT THỂ</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHẦN 03: BỐ CỤC & HỌA TIẾT THỔ CẨM TỐI GIẢN (GRID & MICRO-MOTIFS) -->
+    <section id="grid-motifs" class="scroll-mt-24 space-y-6">
+      <div>
+        <span class="font-mono text-xs text-[#9A3412] font-medium">03 / GRID &amp; CULTURAL MICRO-MOTIFS</span>
+        <h2 class="text-2xl font-bold text-[#231712] tracking-tight mt-0.5">Hệ Quy Chiếu Bố Cục &amp; Họa Tiết Thổ Cẩm Siêu Mảnh</h2>
+      </div>
+
+      <!-- So sánh 2 hệ quy chiếu -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Bento Grid Blueprint -->
+        <div class="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-[#1B4332] uppercase tracking-wider">Chế độ A • Khám Phá Nhanh</span>
+              <h3 class="text-base font-bold text-[#231712]">Bento Discovery Grid (Option 2)</h3>
+            </div>
+            <span class="font-mono text-xs bg-stone-100 px-2.5 py-1 rounded-md text-stone-600">Radius: 16px • Gap: 16px</span>
+          </div>
+          <!-- Wireframe minh họa Bento -->
+          <div class="grid grid-cols-3 gap-2.5 p-3 rounded-xl bg-[#F8F9FA] border border-stone-200/80">
+            <div class="col-span-2 h-24 rounded-xl bg-[#1B4332]/15 border border-[#1B4332]/30 p-3 flex flex-col justify-between">
+              <span class="w-12 h-2 rounded bg-[#1B4332]/40"></span>
+              <span class="w-24 h-2.5 rounded bg-[#1B4332]/60"></span>
+            </div>
+            <div class="col-span-1 h-24 rounded-xl bg-[#B08968]/20 border border-[#B08968]/40 p-3 flex flex-col justify-between">
+              <span class="w-8 h-2 rounded bg-[#B08968]/50"></span>
+              <span class="w-12 h-2.5 rounded bg-[#B08968]/70"></span>
+            </div>
+            <div class="col-span-1 h-16 rounded-xl bg-white border border-stone-200 p-2.5"></div>
+            <div class="col-span-2 h-16 rounded-xl bg-white border border-stone-200 p-2.5"></div>
+          </div>
+          <p class="text-xs text-stone-600 leading-relaxed">
+            Mật độ thông tin cao, phân cấp rõ ràng giúp du khách quét nhanh các địa danh biểu tượng, bản đồ tuyến điểm và gợi ý lịch trình trong 5 giây đầu.
+          </p>
+        </div>
+
+        <!-- Editorial Column Blueprint -->
+        <div class="bg-[#FAF6F0] rounded-2xl border border-[#E5DEC9] p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-[#9A3412] uppercase tracking-wider">Chế độ B • Đọc Sâu Di Sản</span>
+              <h3 class="text-base font-bold text-[#231712]">Editorial Reading Column (Option 1)</h3>
+            </div>
+            <span class="font-mono text-xs bg-white/80 border border-[#E5DEC9] px-2.5 py-1 rounded-md text-stone-700">Max: 68ch • Radius: 4px</span>
+          </div>
+          <!-- Wireframe minh họa Editorial -->
+          <div class="p-3 rounded-xl bg-white/70 border border-[#E5DEC9] flex justify-center">
+            <div class="w-3/5 space-y-2 py-2">
+              <div class="w-3/4 h-3 rounded-xs bg-[#231712]/70 mx-auto"></div>
+              <div class="w-1/2 h-2 rounded-xs bg-[#9A3412]/40 mx-auto mb-3"></div>
+              <div class="space-y-1.5 pt-1">
+                <div class="w-full h-1.5 rounded-xs bg-stone-300"></div>
+                <div class="w-full h-1.5 rounded-xs bg-stone-300"></div>
+                <div class="w-5/6 h-1.5 rounded-xs bg-stone-300"></div>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-stone-700 leading-relaxed">
+            Độ rộng cột giới hạn <strong>65–68 ký tự</strong>, khoảng trắng hai bên rộng rãi và bo góc sắc gọn (4px) tạo nhịp đọc thư thái như một ấn phẩm văn hóa.
+          </p>
+        </div>
+      </div>
+
+      <!-- Trình diễn SVG Họa tiết Thổ cẩm Ê Đê Siêu Mảnh -->
+      <div class="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-sm font-bold text-[#231712]">Hairline Geometric Brocade Divider (Họa Tiết Thổ Cẩm Ê Đê Cách Điệu)</h3>
+            <p class="text-xs text-stone-500 mt-0.5">Sử dụng nét mảnh 1px lấy cảm hứng từ hoa văn Kteh và mái nhà dài để phân tách chương bài mà không gây rối mắt.</p>
+          </div>
+          <span class="font-mono text-[11px] text-[#9A3412] bg-[#FAF6F0] border border-[#E5DEC9] px-2.5 py-1 rounded-md self-start">Stroke: 1px • #D97706 / #E5DEC9</span>
+        </div>
+
+        <!-- SVG Họa tiết mẫu -->
+        <div class="py-5 px-4 rounded-xl bg-[#FAF6F0] border border-[#E5DEC9] flex flex-col items-center justify-center space-y-4">
+          <svg class="w-full max-w-2xl h-6 text-[#9A3412]" viewBox="0 0 600 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <line x1="0" y1="12" x2="245" y2="12" stroke="#E5DEC9" stroke-width="1"/>
+            <line x1="355" y1="12" x2="600" y2="12" stroke="#E5DEC9" stroke-width="1"/>
+            <!-- Cụm hoa văn hình thoi thổ cẩm trung tâm -->
+            <polygon points="265,12 273,5 281,12 273,19" stroke="#D97706" stroke-width="1" fill="none"/>
+            <polygon points="300,3 310,12 300,21 290,12" stroke="#9A3412" stroke-width="1.2" fill="none"/>
+            <circle cx="300" cy="12" r="2" fill="#9A3412"/>
+            <polygon points="319,12 327,5 335,12 327,19" stroke="#D97706" stroke-width="1" fill="none"/>
+          </svg>
+          <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-stone-500">Dùng làm dải phân cách giữa Phần Tra Cứu (Option 2) và Phần Kể Chuyện (Option 1)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHẦN 04: LIVE COMPONENT PREVIEW (MÔ PHỎNG TRẢI NGHIỆM THỰC TẾ) -->
+    <section id="live-bridge" class="scroll-mt-24 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+        <div>
+          <span class="font-mono text-xs text-[#1B4332] font-semibold">04 / LIVE INTERACTIVE BRIDGE</span>
+          <h2 class="text-2xl font-bold text-[#231712] tracking-tight mt-0.5">Mô Phỏng Chuyển Tiếp Trải Nghiệm Thực Tế</h2>
+        </div>
+        <p class="text-xs text-stone-500">Nhấp <strong class="text-[#9A3412]">“Khám phá câu chuyện sâu →”</strong> trên từng thẻ để xem bài viết tương ứng bên dưới.</p>
+      </div>
+
+      <div class="rounded-3xl border border-stone-200/90 bg-white shadow-sm overflow-hidden">
+        <!-- KHỐI A: THE HOOK (OPTION 2 - BENTO CARDS) -->
+        <div id="preview-hook-zone" class="p-5 sm:p-8 bg-[#F8F9FA] border-b border-stone-200/80 space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-md bg-[#1B4332] text-white text-[11px] font-bold">KHỐI A • OPTION 2</span>
+              <span class="text-xs font-semibold text-[#231712]">Điểm Đến Biểu Tượng &amp; Tra Cứu Nhanh</span>
+            </div>
+            <span class="font-mono text-[11px] text-stone-500">Bento Grid • 3 Điểm Neo Chính</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Card 1: Cà phê Buôn Ma Thuột -->
+            <article id="card-coffee" class="story-card group rounded-2xl bg-white border-2 border-[#1B4332] p-5 flex flex-col justify-between shadow-xs transition-all">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full bg-[#B08968]/15 text-[#231712] text-[11px] font-semibold">Thủ phủ Cà phê</span>
+                  <span class="font-mono text-[11px] text-stone-400">0 km • Trung tâm</span>
+                </div>
+                <h3 class="text-lg font-bold text-[#231712] group-hover:text-[#1B4332] transition-colors">
+                  Bảo Tàng Thế Giới Cà Phê &amp; Vườn Robusta
+                </h3>
+                <p class="text-xs text-stone-600 leading-relaxed">
+                  Kiến trúc lấy cảm hứng từ Nhà Dài Ê Đê, lưu giữ hơn 10.000 hiện vật cà phê toàn cầu và trải nghiệm thử nếm Robusta đặc sản Buôn Ma Thuột.
+                </p>
+              </div>
+              <div class="mt-5 pt-3.5 border-t border-stone-100 flex items-center justify-between gap-2">
+                <span class="font-mono text-[11px] text-stone-500">⏱ 0.5 ngày</span>
+                <button type="button" onclick="selectStory('coffee')" class="inline-flex items-center gap-1 text-xs font-bold text-[#9A3412] hover:text-[#231712] py-1.5 px-2.5 rounded-lg bg-[#FAF6F0] hover:bg-[#E5DEC9]/60 transition-colors">
+                  <span>Khám phá câu chuyện sâu</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </article>
+
+            <!-- Card 2: Thác Dray Nur -->
+            <article id="card-waterfall" class="story-card group rounded-2xl bg-white border border-stone-200 hover:border-[#1B4332]/60 p-5 flex flex-col justify-between shadow-xs transition-all">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full bg-[#1B4332]/10 text-[#1B4332] text-[11px] font-semibold">Kỳ quan Thiên nhiên</span>
+                  <span class="font-mono text-[11px] text-stone-400">25 km • Hướng Nam</span>
+                </div>
+                <h3 class="text-lg font-bold text-[#231712] group-hover:text-[#1B4332] transition-colors">
+                  Cụm Thác Dray Nur &amp; Dòng Sêrêpốk
+                </h3>
+                <p class="text-xs text-stone-600 leading-relaxed">
+                  Bức tường nước dài hơn 250m tung bọt trắng xóa giữa rừng đặc dụng, điểm lý tưởng cho trekking, đạp xe xuyên buôn và chèo SUP.
+                </p>
+              </div>
+              <div class="mt-5 pt-3.5 border-t border-stone-100 flex items-center justify-between gap-2">
+                <span class="font-mono text-[11px] text-stone-500">⏱ 1 ngày</span>
+                <button type="button" onclick="selectStory('waterfall')" class="inline-flex items-center gap-1 text-xs font-bold text-[#9A3412] hover:text-[#231712] py-1.5 px-2.5 rounded-lg bg-[#FAF6F0] hover:bg-[#E5DEC9]/60 transition-colors">
+                  <span>Khám phá câu chuyện sâu</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </article>
+
+            <!-- Card 3: Hồ Lắk -->
+            <article id="card-laklake" class="story-card group rounded-2xl bg-white border border-stone-200 hover:border-[#1B4332]/60 p-5 flex flex-col justify-between shadow-xs transition-all">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full bg-[#D97706]/15 text-[#9A3412] text-[11px] font-semibold">Di sản Hồ &amp; Buôn</span>
+                  <span class="font-mono text-[11px] text-stone-400">52 km • QL27</span>
+                </div>
+                <h3 class="text-lg font-bold text-[#231712] group-hover:text-[#1B4332] transition-colors">
+                  Hồ Lắk &amp; Buôn Jun Văn Hóa M'Nông
+                </h3>
+                <p class="text-xs text-stone-600 leading-relaxed">
+                  Hồ nước ngọt tự nhiên lớn nhất Tây Nguyên, nơi lưu giữ nghệ thuật độc mộc cổ xưa và không gian sinh hoạt truyền thống của người M'nông Rlăm.
+                </p>
+              </div>
+              <div class="mt-5 pt-3.5 border-t border-stone-100 flex items-center justify-between gap-2">
+                <span class="font-mono text-[11px] text-stone-500">⏱ 1–2 ngày</span>
+                <button type="button" onclick="selectStory('laklake')" class="inline-flex items-center gap-1 text-xs font-bold text-[#9A3412] hover:text-[#231712] py-1.5 px-2.5 rounded-lg bg-[#FAF6F0] hover:bg-[#E5DEC9]/60 transition-colors">
+                  <span>Khám phá câu chuyện sâu</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <!-- KHỐI B: THE SOUL (OPTION 1 - EDITORIAL DEEP DIVE) -->
+        <div id="preview-soul-zone" class="p-6 sm:p-10 lg:p-12 bg-[#FAF6F0] transition-colors">
+          <div class="max-w-3xl mx-auto space-y-6">
+            <!-- Thanh nhãn chế độ đọc sâu -->
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 rounded-sm bg-[#9A3412] text-white text-[11px] font-bold">KHỐI B • OPTION 1</span>
+                <span id="story-kicker" class="font-mono text-xs uppercase tracking-wider text-[#9A3412]">Chuyên Đề Di Sản • Kiến Trúc &amp; Cà Phê</span>
+              </div>
+              <span id="story-read-time" class="font-mono text-xs text-stone-500">Thời gian đọc: 4 phút</span>
+            </div>
+
+            <!-- Họa tiết thổ cẩm phân cách -->
+            <svg class="w-full h-5" viewBox="0 0 600 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <line x1="0" y1="10" x2="260" y2="10" stroke="#E5DEC9" stroke-width="1"/>
+              <line x1="340" y1="10" x2="600" y2="10" stroke="#E5DEC9" stroke-width="1"/>
+              <polygon points="280,10 286,5 292,10 286,15" stroke="#D97706" stroke-width="1"/>
+              <polygon points="300,3 308,10 300,17 292,10" stroke="#9A3412" stroke-width="1.2"/>
+              <polygon points="308,10 314,5 320,10 314,15" stroke="#D97706" stroke-width="1"/>
+            </svg>
+
+            <!-- Nội dung bài viết động (Mặc định: Câu chuyện Cà phê & Nhà Dài Ê Đê) -->
+            <div id="editorial-content" class="space-y-5 fade-in-story">
+              <h3 id="story-title" class="font-serif text-3xl sm:text-4xl font-bold text-[#231712] leading-[1.18]">
+                Từ Hình Dáng Ngôi Nhà Dài Ê Đê Đến Bản Tuyên Ngôn Cà Phê Buôn Ma Thuột
+              </h3>
+
+              <p id="story-lead" class="editorial-dropcap text-[15px] sm:text-base text-[#231712]/90 leading-[1.8]">
+                Nếu hạt Robusta Buôn Ma Thuột là lời chào mạnh mẽ đưa Đắk Lắk ra thế giới, thì kiến trúc Nhà Dài của người Ê Đê chính là linh hồn neo giữ ký ức vùng đất đỏ bazan. Bước qua bậc cầu thang gỗ có chạm khắc đôi bầu sữa mẹ — biểu tượng thiêng liêng của chế độ mẫu hệ — du khách không chỉ tham quan một bảo tàng cà phê, mà đang bước vào cấu trúc gia đình mở rộng của đại ngàn.
+              </p>
+
+              <blockquote id="story-quote" class="my-6 pl-5 border-l-2 border-[#9A3412] py-1">
+                <p class="font-serif italic text-xl sm:text-2xl text-[#231712] leading-snug">
+                  “Người Ê Đê không đo sự giàu có bằng những bức tường cao, mà bằng chiều dài của chiếc ghế Kpan và tiếng ngân của dàn chiêng Knah mỗi mùa tuốt lúa.”
+                </p>
+                <footer id="story-quote-author" class="mt-2 font-mono text-[11px] uppercase tracking-wider text-stone-500">
+                  — Tư liệu Văn hóa Bản địa Buôn Ako Dhông, Đắk Lắk
+                </footer>
+              </blockquote>
+            </div>
+
+            <!-- Chân bài viết: Nút quay lại lịch trình (Kết nối ngược về Option 2) -->
+            <div class="pt-6 border-t border-[#E5DEC9] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="text-xs text-stone-600">
+                Muốn đưa điểm đến này vào hành trình của bạn?
+              </div>
+              <button type="button" onclick="scrollToHook()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#1B4332] hover:bg-[#143326] text-white text-xs font-semibold transition-colors shadow-xs">
+                <span>← Quay lại lịch trình &amp; bản đồ (Option 2)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHẦN 05: DESIGN TOKENS (CSS VARIABLES) -->
+    <section id="tokens" class="scroll-mt-24 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <span class="font-mono text-xs text-[#9A3412] font-medium">05 / DESIGN TOKENS</span>
+          <h2 class="text-2xl font-bold text-[#231712] tracking-tight mt-0.5">CSS Variables Sẵn Sàng Tích Hợp</h2>
+        </div>
+        <button type="button" onclick="copyTokens()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#231712] hover:bg-stone-800 text-white text-xs font-semibold transition-colors shadow-xs self-start sm:self-auto">
+          <svg class="w-4 h-4 text-[#D97706]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+          </svg>
+          <span>Copy CSS Tokens</span>
+        </button>
+      </div>
+
+      <div class="bg-[#231712] rounded-2xl border border-stone-800 p-5 sm:p-6 overflow-x-auto shadow-sm">
+        <pre id="css-tokens-code" class="font-mono text-xs sm:text-[13px] leading-relaxed text-stone-200"><code>:root {
+  /* === 1. ANCHOR COLORS (Option 2: Cà phê & Thiên nhiên) === */
+  --dl-color-espresso: #231712;       /* Primary Dark / Headings */
+  --dl-color-forest: #1B4332;         /* Primary Action / Eco-Adventure */
+  --dl-color-crema: #B08968;          /* Warm Secondary / Coffee Tags */
+
+  /* === 2. EDITORIAL ACCENTS (Option 1: Di sản Bazan) === */
+  --dl-color-terracotta: #9A3412;     /* Cultural Highlights / Drop-caps */
+  --dl-color-bronze: #D97706;         /* Heritage Sparks / Brocade Accents */
+
+  /* === 3. SURFACES & NEUTRALS === */
+  --dl-surface-crisp: #F8F9FA;        /* Option 2 Discovery Background */
+  --dl-surface-parchment: #FAF6F0;    /* Option 1 Long-form Reading Surface */
+  --dl-surface-card: #FFFFFF;         /* Bento Card Surface */
+  --dl-border-warm: #E5DEC9;          /* Hairline Cultural Dividers */
+
+  /* === 4. DUAL-VOICE TYPOGRAPHY === */
+  --dl-font-ui: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --dl-font-editorial: 'Cormorant Garamond', Georgia, serif;
+  --dl-font-mono: 'JetBrains Mono', monospace;
+
+  /* === 5. SHAPE & SPACING === */
+  --dl-radius-bento: 16px;            /* Option 2 Modern Cards */
+  --dl-radius-editorial: 4px;         /* Option 1 Sharp Magazine Framing */
+  --dl-grid-gap: 16px;
+  --dl-editorial-measure: 68ch;
+}</code></pre>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer ngắn gọn -->
+  <footer class="border-t border-stone-200 bg-white mt-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-500">
+      <div>
+        <strong class="text-[#231712]">Đắk Lắk Tourism Design System</strong> • Định hướng kết hợp Option 2 (Mỏ neo) &amp; Option 1 (Chiều sâu).
+      </div>
+      <div class="font-mono text-[11px]">Sẵn sàng triển khai Prototype Trang Chủ &amp; Trang Bài Viết</div>
+    </div>
+  </footer>
+
+  <!-- Script xử lý tương tác: Copy an toàn (execCommand) & Chuyển đổi câu chuyện Live Bridge -->
+  <script>
+    // Dữ liệu 3 bài viết chiều sâu tương ứng với 3 thẻ điểm đến ở Khối A
+    const storiesData = {
+      coffee: {
+        cardId: 'card-coffee',
+        kicker: 'Chuyên Đề Di Sản • Kiến Trúc & Cà Phê',
+        readTime: 'Thời gian đọc: 4 phút',
+        title: 'Từ Hình Dáng Ngôi Nhà Dài Ê Đê Đến Bản Tuyên Ngôn Cà Phê Buôn Ma Thuột',
+        lead: 'Nếu hạt Robusta Buôn Ma Thuột là lời chào mạnh mẽ đưa Đắk Lắk ra thế giới, thì kiến trúc Nhà Dài của người Ê Đê chính là linh hồn neo giữ ký ức vùng đất đỏ bazan. Bước qua bậc cầu thang gỗ có chạm khắc đôi bầu sữa mẹ — biểu tượng thiêng liêng của chế độ mẫu hệ — du khách không chỉ tham quan một bảo tàng cà phê, mà đang bước vào cấu trúc gia đình mở rộng của đại ngàn.',
+        quote: '“Người Ê Đê không đo sự giàu có bằng những bức tường cao, mà bằng chiều dài của chiếc ghế Kpan và tiếng ngân của dàn chiêng Knah mỗi mùa tuốt lúa.”',
+        author: '— Tư liệu Văn hóa Bản địa Buôn Ako Dhông, Đắk Lắk'
+      },
+      waterfall: {
+        cardId: 'card-waterfall',
+        kicker: 'Chuyên Đề Địa Chất & Huyền Thoại • Dòng Sêrêpốk',
+        readTime: 'Thời gian đọc: 5 phút',
+        title: 'Sêrêpốk — Dòng Sông Chảy Ngược Và Truyền Thuyết Tình Yêu Trên Ngọn Thác Dray Nur',
+        lead: 'Khác với hầu hết các con sông Việt Nam đổ ra biển Đông, dòng Sêrêpốk hợp lưu từ Krông Ana (sông Cái) và Krông Nô (sông Đực) lại chảy ngược về phía Tây sang dòng Mê Kông. Tại nơi hai nhánh sông gặp gỡ và đổ xuống vách đá bazan dựng đứng, thác Dray Nur hiện ra như dải lụa khổng lồ gắn liền với thiên tình sử của chàng Đam San và nàng H’Nhí.',
+        quote: '“Đứng trước màn sương trắng của Dray Nur vào buổi sớm, người ta hiểu vì sao sử thi Tây Nguyên luôn mang âm hưởng cuộn trào của nước và đá bazan.”',
+        author: '— Ghi chép Điền dã Lưu vực Sông Sêrêpốk, Krông Ana'
+      },
+      laklake: {
+        cardId: 'card-laklake',
+        kicker: 'Chuyên Đề Bản Địa • Văn Hóa M’Nông Rlăm',
+        readTime: 'Thời gian đọc: 4 phút',
+        title: 'Thuyền Độc Mộc Trên Mặt Hồ Lắk Và Ký Ức Những Người Giữ Rừng M’Nông',
+        lead: 'Khi sương sớm còn phủ kín mặt hồ rộng hơn 500 hecta dưới chân dãy Chư Yang Sin, những chiếc thuyền độc mộc đẽo từ nguyên thân cây sao cổ thụ lặng lẽ rẽ nước rời bến Buôn Jun. Với người M’nông Rlăm sống ven hồ, mỗi con thuyền và mỗi nếp nhà sàn hướng mặt ra sóng nước đều là một phần của hệ sinh thái cộng sinh bền vững qua hàng trăm năm.',
+        quote: '“Mặt hồ Lắk là tấm gương soi của trời cao nguyên; giữ cho nước hồ trong cũng chính là giữ lấy nhịp thở của buôn làng M’nông.”',
+        author: '— Nghệ nhân Chế tác Thuyền Độc Mộc, Huyện Lắk, Đắk Lắk'
+      }
+    };
+
+    // Chuyển đổi câu chuyện chiều sâu ở Khối B khi nhấp vào thẻ Khối A
+    function selectStory(key) {
+      const data = storiesData[key];
+      if (!data) return;
+
+      // Cập nhật trạng thái viền active của 3 thẻ Bento
+      document.querySelectorAll('.story-card').forEach(card => {
+        card.classList.remove('border-2', 'border-[#1B4332]');
+        card.classList.add('border', 'border-stone-200');
+      });
+      const activeCard = document.getElementById(data.cardId);
+      if (activeCard) {
+        activeCard.classList.remove('border', 'border-stone-200');
+        activeCard.classList.add('border-2', 'border-[#1B4332]');
+      }
+
+      // Cập nhật nội dung bài viết Editorial
+      const container = document.getElementById('editorial-content');
+      container.classList.remove('fade-in-story');
+      void container.offsetWidth; // Trigger reflow để chạy lại animation
+
+      document.getElementById('story-kicker').textContent = data.kicker;
+      document.getElementById('story-read-time').textContent = data.readTime;
+      document.getElementById('story-title').textContent = data.title;
+      document.getElementById('story-lead').textContent = data.lead;
+      document.getElementById('story-quote').querySelector('p').textContent = data.quote;
+      document.getElementById('story-quote-author').textContent = data.author;
+
+      container.classList.add('fade-in-story');
+
+      // Cuộn mượt xuống vùng đọc sâu nếu đang ở màn hình nhỏ
+      const soulZone = document.getElementById('preview-soul-zone');
+      if (soulZone) {
+        soulZone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    // Cuộn ngược lên vùng tra cứu lịch trình (Option 2)
+    function scrollToHook() {
+      const hookZone = document.getElementById('preview-hook-zone');
+      if (hookZone) {
+        hookZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Hàm sao chép văn bản an toàn trong iFrame bằng document.execCommand('copy')
+    function copyToClipboardSafe(text, successMessage) {
+      const tempInput = document.createElement('textarea');
+      tempInput.value = text;
+      tempInput.setAttribute('readonly', '');
+      tempInput.style.position = 'fixed';
+      tempInput.style.top = '-9999px';
+      document.body.appendChild(tempInput);
+      tempInput.select();
+
+      try {
+        document.execCommand('copy');
+        showToast(successMessage);
+      } catch (err) {
+        showToast('Không thể sao chép tự động');
+      } finally {
+        document.body.removeChild(tempInput);
+      }
+    }
+
+    function copyHex(hex, name) {
+      copyToClipboardSafe(hex, `Đã sao chép ${name}: ${hex}`);
+    }
+
+    function copyTokens() {
+      const codeText = document.getElementById('css-tokens-code').innerText;
+      copyToClipboardSafe(codeText, 'Đã sao chép toàn bộ CSS Design Tokens!');
+    }
+
+    let toastTimeout;
+    function showToast(message) {
+      const toast = document.getElementById('copy-toast');
+      const toastText = document.getElementById('copy-toast-text');
+      toastText.textContent = message;
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2400);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+{
+  "version": "1.0.0",
+  "description": "Golden evaluation cases for Dak Lak 5-Phase Agentic Planner & Phase 5 Runtime Evaluator",
+  "cases": [
+    {
+      "id": "missing-fields-clarification",
+      "kind": "clarification",
+      "description": "Vague trip request missing travelers, dates, and budget triggers needs_clarification with suggestedPresets",
+      "lang": "vi",
+      "userMessage": "Mình muốn đi Đắk Lắk chơi vài ngày, tư vấn giúp nhé",
+      "intake": {
+        "intent": "plan_trip",
+        "travelersCount": null,
+        "companionType": "couple",
+        "travelDates": null,
+        "duration": "3N2D",
+        "totalBudgetVnd": null,
+        "budgetTier": "standard",
+        "mainPurpose": "coffee",
+        "secondaryInterests": [],
+        "missingFields": ["travelers", "dates", "budget"],
+        "needsClarification": true,
+        "clarificationQuestion": "Bạn dự định đi mấy người, vào thời gian nào và ngân sách khoảng bao nhiêu?"
+      },
+      "expected": {
+        "status": "needs_clarification",
+        "minMissingFields": 2,
+        "expectsSuggestedPresets": true
+      }
+    },
+    {
+      "id": "tight-budget-pruning",
+      "kind": "budget_pruning",
+      "description": "Tight budget (1.6M VND for 2 guests / 2N1D) prunes luxury stays/cars and keeps affordable motorbike + budget stay + low-fee stops",
+      "lang": "vi",
+      "intake": {
+        "intent": "plan_trip",
+        "travelersCount": 2,
+        "companionType": "couple",
+        "travelDates": "2026-12-10",
+        "duration": "2N1D",
+        "totalBudgetVnd": 1600000,
+        "budgetTier": "budget",
+        "mainPurpose": "coffee",
+        "secondaryInterests": [],
+        "missingFields": [],
+        "needsClarification": false
+      },
+      "expected": {
+        "maxEstimatedTotalVnd": 1600000,
+        "preferredTransportModes": ["motorbike", "local_bus_shuttle"],
+        "forbiddenTier": "luxury",
+        "expectsBudgetDisclaimerOrPruning": true
+      }
+    },
+    {
+      "id": "dec-coffee-harvest",
+      "kind": "season_purpose",
+      "description": "December trip focused on coffee harvest aligns with Mùa Đông (Tháng 10 – Tháng 12) and prioritizes coffee harvest/museum/roastery stops",
+      "lang": "vi",
+      "intake": {
+        "intent": "plan_trip",
+        "travelersCount": 2,
+        "companionType": "couple",
+        "travelDates": "2026-12-15",
+        "duration": "3N2D",
+        "totalBudgetVnd": 6000000,
+        "budgetTier": "standard",
+        "mainPurpose": "coffee",
+        "secondaryInterests": ["thu hoạch cà phê"],
+        "missingFields": [],
+        "needsClarification": false
+      },
+      "expected": {
+        "seasonKeyword": "Đông",
+        "mustIncludeAnyStop": [
+          "Nông trại Cà phê Ea Tân",
+          "Bảo tàng Thế giới Cà phê",
+          "Làng Cà phê Trung Nguyên"
+        ],
+        "theme": "coffee"
+      }
+    },
+    {
+      "id": "aug-waterfall-season",
+      "kind": "season_purpose",
+      "description": "August trip focused on nature/waterfalls aligns with Mùa Thu (Tháng 7 – Tháng 9) and highlights Thác Dray Nur Hùng Vĩ",
+      "lang": "vi",
+      "intake": {
+        "intent": "plan_trip",
+        "travelersCount": 4,
+        "companionType": "friends",
+        "travelDates": "2026-08-14",
+        "duration": "3N2D",
+        "totalBudgetVnd": 10000000,
+        "budgetTier": "standard",
+        "mainPurpose": "nature",
+        "secondaryInterests": ["thác nước"],
+        "missingFields": [],
+        "needsClarification": false
+      },
+      "expected": {
+        "seasonKeyword": "Thu",
+        "mustIncludeAnyStop": ["Thác Dray Nur Hùng Vĩ", "Hồ Lắk & Buôn Jun"],
+        "theme": "nature"
+      }
+    },
+    {
+      "id": "family-vs-solo-pacing",
+      "kind": "pacing",
+      "description": "Family of 5 (3N2D) requires multi-seat vehicle & relaxed maxStopsPerDay (<=3) vs solo backpacker (higher stops/day & motorbike allowed)",
+      "lang": "vi",
+      "familyIntake": {
+        "intent": "plan_trip",
+        "travelersCount": 5,
+        "companionType": "family",
+        "travelDates": "2026-05-01",
+        "duration": "3N2D",
+        "totalBudgetVnd": 15000000,
+        "budgetTier": "standard",
+        "mainPurpose": "culture",
+        "secondaryInterests": [],
+        "missingFields": [],
+        "needsClarification": false
+      },
+      "soloIntake": {
+        "intent": "plan_trip",
+        "travelersCount": 1,
+        "companionType": "solo",
+        "travelDates": "2026-05-01",
+        "duration": "3N2D",
+        "totalBudgetVnd": 4500000,
+        "budgetTier": "budget",
+        "mainPurpose": "culture",
+        "secondaryInterests": [],
+        "missingFields": [],
+        "needsClarification": false
+      },
+      "expected": {
+        "familyMaxStopsPerDay": 3,
+        "soloMinMaxStopsPerDay": 3,
+        "familyMinVehicleCapacity": 5,
+        "soloAllowsMotorbike": true
+      }
+    },
+    {
+      "id": "general-qa-coffee-season",
+      "kind": "general_qa",
+      "description": "Pure question about Dak Lak coffee blossom season answers directly without replacing itinerary canvas",
+      "lang": "vi",
+      "userMessage": "Hoa cà phê Đắk Lắk nở đẹp nhất vào tháng mấy và nên đi đâu ngắm?",
+      "intake": {
+        "intent": "general_qa",
+        "travelersCount": null,
+        "companionType": null,
+        "travelDates": null,
+        "duration": "3N2D",
+        "totalBudgetVnd": null,
+        "budgetTier": "standard",
+        "mainPurpose": "coffee",
+        "secondaryInterests": [],
+        "missingFields": [],
+        "needsClarification": false
+      },
+      "expected": {
+        "intent": "general_qa",
+        "status": "completed",
+        "expectsGeneratedDays": false,
+        "answerMustMentionAny": ["tháng 1", "tháng 2", "tháng 3", "Xuân", "hoa cà phê"]
+      }
+    },
+    {
+      "id": "general-qa-cuisine-specialties",
+      "kind": "general_qa",
+      "description": "General question about Buon Ma Thuot local food specialties answers directly as general_qa without opening planner or generating days",
+      "lang": "vi",
+      "userMessage": "Đến Buôn Ma Thuột ăn gì ngon và có đặc sản gì nổi tiếng?",
+      "intake": {
+        "intent": "general_qa",
+        "travelersCount": null,
+        "companionType": null,
+        "travelDates": null,
+        "duration": "3N2D",
+        "totalBudgetVnd": null,
+        "budgetTier": "standard",
+        "mainPurpose": "cuisine",
+        "secondaryInterests": [],
+        "missingFields": [],
+        "needsClarification": false
+      },
+      "expected": {
+        "intent": "general_qa",
+        "status": "completed",
+        "expectsGeneratedDays": false,
+        "answerMustMentionAny": ["bún đỏ", "gà nướng", "cơm lam", "cá lăng", "Phan Đình Giót"]
+      }
+    },
+    {
+      "id": "general-qa-ethical-elephant-yok-don",
+      "kind": "general_qa",
+      "description": "Question about Yok Don elephant tours answers directly with ethical observation info and no elephant riding violation",
+      "lang": "vi",
+      "userMessage": "Cho hỏi ở Vườn Quốc gia Yok Đôn có tour xem voi thân thiện không và giá vé bao nhiêu?",
+      "intake": {
+        "intent": "general_qa",
+        "travelersCount": null,
+        "companionType": null,
+        "travelDates": null,
+        "duration": "3N2D",
+        "totalBudgetVnd": null,
+        "budgetTier": "standard",
+        "mainPurpose": "nature",
+        "secondaryInterests": [],
+        "missingFields": [],
+        "needsClarification": false
+      },
+      "expected": {
+        "intent": "general_qa",
+        "status": "completed",
+        "expectsGeneratedDays": false,
+        "answerMustMentionAny": ["Yok Đôn", "voi", "Buôn Đôn"]
+      }
+    },
+    {
+      "id": "over-budget-violation",
+      "kind": "eval_violation",
+      "description": "Phase 5 evaluator flags budget overrun when generated expenses exceed user totalBudgetVnd",
+      "totalBudgetVnd": 3000000,
+      "maxStopsPerDay": 3,
+      "generatedDays": [
+        {
+          "day": "Ngày 1",
+          "title": "Khám phá BMT",
+          "area": "TP. Buôn Ma Thuột",
+          "slots": [
+            {
+              "time": "09:30 – 11:30",
+              "period": "Buổi sáng",
+              "title": "Bảo tàng Thế giới Cà phê",
+              "location": "Đường Nguyễn Đình Chiểu • TP. BMT",
+              "desc": "Tham quan bảo tàng cà phê."
+            }
+          ]
+        }
+      ],
+      "generatedExpenses": [
+        { "title": "Resort cao cấp 2 đêm", "cat": "stay", "amount": 4200000 },
+        { "title": "Xe riêng 7 chỗ", "cat": "transit", "amount": 1800000 }
+      ],
+      "citations": [],
+      "expected": {
+        "passed": false,
+        "expectedViolationKeywords": ["budget", "ngân sách", "over"]
+      }
+    },
+    {
+      "id": "ungrounded-stop-and-ethical-violation",
+      "kind": "eval_violation",
+      "description": "Phase 5 evaluator flags ungrounded stop not in allowed selection/directory, unethical elephant-riding activity, and hallucinated citations",
+      "totalBudgetVnd": 8000000,
+      "maxStopsPerDay": 3,
+      "generatedDays": [
+        {
+          "day": "Ngày 1",
+          "title": "Lịch trình lỗi",
+          "area": "Buôn Đôn",
+          "slots": [
+            {
+              "time": "08:00 – 10:00",
+              "period": "Buổi sáng",
+              "title": "Công viên Vũ trụ Ban Mê Ảo",
+              "location": "Không xác định",
+              "desc": "Trải nghiệm cưỡi voi vượt sông Sêrêpốk cực vui."
+            }
+          ]
+        }
+      ],
+      "generatedExpenses": [
+        { "title": "Chi phí tham quan", "cat": "activity", "amount": 500000 }
+      ],
+      "citations": [
+        {
+          "title": "Fake source",
+          "url": "https://hallucinated.example.invalid/post",
+          "source": "tavily"
+        }
+      ],
+      "expected": {
+        "passed": false,
+        "mustCatchUngroundedStop": true,
+        "mustCatchElephantRiding": true,
+        "mustCatchHallucinatedCitation": true
+      }
+    }
+  ]
+}
