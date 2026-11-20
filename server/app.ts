@@ -12,7 +12,11 @@ import { authRouter } from './routes/authRoutes.ts';
 import { publicPostsRouter } from './routes/publicPostsRoutes.ts';
 import { uploadRouter } from './routes/uploadRoutes.ts';
 
-initArizeTelemetry();
+try {
+  initArizeTelemetry();
+} catch (err) {
+  console.warn('[Arize AX] Telemetry initialization skipped:', err instanceof Error ? err.message : err);
+}
 
 let seedPromise: Promise<void> | null = null;
 
