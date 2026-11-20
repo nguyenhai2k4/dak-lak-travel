@@ -4,7 +4,7 @@ import path from 'node:path';
 import { Router } from 'express';
 import multer from 'multer';
 import { UPLOADS_DIR } from '../config.ts';
-import { requireAuth } from '../services/auth.ts';
+import { requireAuth } from '../services/core/auth.ts';
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 

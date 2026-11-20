@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
-import { initArizeTelemetry, shutdownArizeTelemetry } from './services/arizeTelemetry.ts';
+import { initArizeTelemetry, shutdownArizeTelemetry } from './services/ai/arizeTelemetry.ts';
 import {
   DIST_DIR,
   getGeminiApiKey,

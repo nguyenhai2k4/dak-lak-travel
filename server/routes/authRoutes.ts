@@ -7,7 +7,7 @@ import {
   extractSessionTokenFromRequest,
   getAuthUserFromRequest,
   verifyPassword,
-} from '../services/auth.ts';
+} from '../services/core/auth.ts';
 import { UserRole } from '../../src/types/index.ts';
 
 export const authRouter = Router();

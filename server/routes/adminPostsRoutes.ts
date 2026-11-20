@@ -1,6 +1,6 @@
 import { Request, Response, Router } from 'express';
-import { requireAdmin, requireAuth } from '../services/auth.ts';
-import { isServiceError } from '../services/errors.ts';
+import { requireAdmin, requireAuth } from '../services/core/auth.ts';
+import { isServiceError } from '../services/core/errors.ts';
 import {
   createAdminPost,
   deleteAdminPost,
@@ -13,7 +13,7 @@ import {
   saveCustomTranslation,
   submitAdminPost,
   updateAdminPost,
-} from '../services/postsService.ts';
+} from '../services/cms/postsService.ts';
 
 export const adminPostsRouter = Router();
 adminPostsRouter.use(requireAuth);

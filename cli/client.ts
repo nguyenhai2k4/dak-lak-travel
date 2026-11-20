@@ -9,8 +9,8 @@ import {
 } from '../server/config.ts';
 import { getDb } from '../server/db/database.ts';
 import { ensureSeedData } from '../server/db/seed.ts';
-import { AuthUser, createSession, deleteSession, verifyPassword } from '../server/services/auth.ts';
-import { isServiceError, ServiceError } from '../server/services/errors.ts';
+import { AuthUser, createSession, deleteSession, verifyPassword } from '../server/services/core/auth.ts';
+import { isServiceError, ServiceError } from '../server/services/core/errors.ts';
 import {
   createAdminPost,
   deleteAdminPost,
@@ -25,13 +25,13 @@ import {
   saveCustomTranslation,
   submitAdminPost,
   updateAdminPost,
-} from '../server/services/postsService.ts';
+} from '../server/services/cms/postsService.ts';
 import {
   createUser,
   findAuthUserByEmail,
   listUsers,
   updateUser,
-} from '../server/services/usersService.ts';
+} from '../server/services/cms/usersService.ts';
 import {
   CmsPostAdmin,
   CmsPostPublic,

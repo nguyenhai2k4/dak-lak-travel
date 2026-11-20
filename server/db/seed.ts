@@ -10,8 +10,8 @@ import {
   redEarthStories,
 } from '../../src/data/articles.ts';
 import { dakLakPlaceDirectory } from '../../src/data/places.ts';
-import { hashPassword } from '../services/auth.ts';
-import { slugifyVietnamese } from '../services/slugify.ts';
+import { hashPassword } from '../services/core/auth.ts';
+import { slugifyVietnamese } from '../services/core/slugify.ts';
 import { getDb } from './database.ts';
 import { seedBentoEn, seedStoriesEn } from './seedEn.ts';
 

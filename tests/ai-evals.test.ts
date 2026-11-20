@@ -25,39 +25,39 @@ const {
   evaluateQaOutput,
   hasElephantRidingViolation,
   sanitizeEthicalElephantText,
-} = await import('../server/services/aiEvaluator.ts');
+} = await import('../server/services/ai/aiEvaluator.ts');
 const {
   saveAiTrace,
   getAiTraceById,
   submitAiTraceFeedback,
   listAiTraces,
-} = await import('../server/services/aiTraceService.ts');
+} = await import('../server/services/ai/aiTraceService.ts');
 const {
   toSafeSpanValue,
   withOpenInferenceSpan,
   withSessionScope,
-} = await import('../server/services/arizeTelemetry.ts');
+} = await import('../server/services/ai/arizeTelemetry.ts');
 const {
   clearLangGraphMemory,
   getLangGraphTraceMetadata,
   runLangGraphChat,
-} = await import('../server/services/aiWorkflow/langGraphAgent.ts');
+} = await import('../server/services/ai/workflow/langGraphAgent.ts');
 const { runPhase1IntakeDeterministic } = await import(
-  '../server/services/aiWorkflow/phase1Intake.ts'
+  '../server/services/ai/workflow/phase1Intake.ts'
 );
 const { runPhase2Capacity } = await import(
-  '../server/services/aiWorkflow/phase2Capacity.ts'
+  '../server/services/ai/workflow/phase2Capacity.ts'
 );
 const { runPhase3Budget } = await import(
-  '../server/services/aiWorkflow/phase3Budget.ts'
+  '../server/services/ai/workflow/phase3Budget.ts'
 );
 const { runPhase4Purpose } = await import(
-  '../server/services/aiWorkflow/phase4Purpose.ts'
+  '../server/services/ai/workflow/phase4Purpose.ts'
 );
 const { synthesizeDeterministicPlan } = await import(
-  '../server/services/aiWorkflow/phase5Synthesis.ts'
+  '../server/services/ai/workflow/phase5Synthesis.ts'
 );
-const { handleAiChat } = await import('../server/services/aiChatbot.ts');
+const { handleAiChat } = await import('../server/services/ai/aiChatbot.ts');
 
 ensureSeedData();
 

@@ -13,11 +13,11 @@ import {
   TAVILY_SEARCH_DEPTH,
   TAVILY_TIMEOUT_MS,
 } from '../config.ts';
-import { handleAiChat } from '../services/aiChatbot.ts';
-import { listAiTraces, submitAiTraceFeedback } from '../services/aiTraceService.ts';
-import { LANGGRAPH_TOOL_NAMES } from '../services/aiWorkflow/langGraphAgent.ts';
-import { requireAdmin, requireAuth } from '../services/auth.ts';
-import { isServiceError } from '../services/errors.ts';
+import { handleAiChat } from '../services/ai/aiChatbot.ts';
+import { listAiTraces, submitAiTraceFeedback } from '../services/ai/aiTraceService.ts';
+import { LANGGRAPH_TOOL_NAMES } from '../services/ai/workflow/langGraphAgent.ts';
+import { requireAdmin, requireAuth } from '../services/core/auth.ts';
+import { isServiceError } from '../services/core/errors.ts';
 import {
   AgenticIntent,
   AiChatHistoryItem,

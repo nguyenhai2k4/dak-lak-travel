@@ -1,4 +1,4 @@
-import { sanitizeRichHtml } from '../server/services/sanitize.ts';
+import { sanitizeRichHtml } from '../server/services/core/sanitize.ts';
 import {
   CmsPostAdmin,
   CmsSectionType,

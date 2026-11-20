@@ -28,12 +28,12 @@ const {
   buildClarificationOptions,
   inferTravelersCountFromCompanion,
   runPhase1IntakeDeterministic,
-} = await import('../server/services/aiWorkflow/phase1Intake.ts');
+} = await import('../server/services/ai/workflow/phase1Intake.ts');
 const {
   classifyFollowUpActionDeterministic,
   routeFollowUp,
-} = await import('../server/services/aiWorkflow/followUpRouter.ts');
-const { handleAiChat } = await import('../server/services/aiChatbot.ts');
+} = await import('../server/services/ai/workflow/followUpRouter.ts');
+const { handleAiChat } = await import('../server/services/ai/aiChatbot.ts');
 
 ensureSeedData();
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { requireAdmin, requireAuth } from '../services/auth.ts';
-import { isServiceError } from '../services/errors.ts';
-import { createUser, listUsers, updateUser } from '../services/usersService.ts';
+import { requireAdmin, requireAuth } from '../services/core/auth.ts';
+import { isServiceError } from '../services/core/errors.ts';
+import { createUser, listUsers, updateUser } from '../services/cms/usersService.ts';
 
 export const adminUsersRouter = Router();
 adminUsersRouter.use(requireAuth, requireAdmin);

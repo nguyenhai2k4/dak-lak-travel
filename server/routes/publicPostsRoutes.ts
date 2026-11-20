@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { attachOptionalAuth } from '../services/auth.ts';
-import { isServiceError } from '../services/errors.ts';
-import { getPublicPostBySlug, listPublicPosts } from '../services/postsService.ts';
+import { attachOptionalAuth } from '../services/core/auth.ts';
+import { isServiceError } from '../services/core/errors.ts';
+import { getPublicPostBySlug, listPublicPosts } from '../services/cms/postsService.ts';
 import { Language } from '../../src/types/index.ts';
 
 export const publicPostsRouter = Router();

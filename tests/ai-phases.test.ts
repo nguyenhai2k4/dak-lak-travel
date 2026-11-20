@@ -20,28 +20,28 @@ const {
   maybeFetchTavilyQaContext,
   buildGroundedQaReplyDeterministic,
 } = await import(
-  '../server/services/aiWorkflow/phase1Intake.ts'
+  '../server/services/ai/workflow/phase1Intake.ts'
 );
 const { runPhase2Capacity, resolveSeasonFromDates } = await import(
-  '../server/services/aiWorkflow/phase2Capacity.ts'
+  '../server/services/ai/workflow/phase2Capacity.ts'
 );
 const { runPhase3Budget } = await import(
-  '../server/services/aiWorkflow/phase3Budget.ts'
+  '../server/services/ai/workflow/phase3Budget.ts'
 );
 const { runPhase4Purpose } = await import(
-  '../server/services/aiWorkflow/phase4Purpose.ts'
+  '../server/services/ai/workflow/phase4Purpose.ts'
 );
 const {
   listEnrichedPlaces,
   upsertPlacePrice,
   isPriceTimestampStale,
-} = await import('../server/services/plannerDataService.ts');
+} = await import('../server/services/ai/plannerDataService.ts');
 const {
   buildTavilyQaQuery,
   extractVndPricesFromText,
   searchPlacePriceWithTavily,
   searchGeneralQaWithTavily,
-} = await import('../server/services/tavilyService.ts');
+} = await import('../server/services/ai/tavilyService.ts');
 const {
   LANGGRAPH_TOOL_NAMES,
   buildDakLakLangGraph,
@@ -50,7 +50,7 @@ const {
   getLangGraphCheckpointer,
   getLangGraphTraceMetadata,
   runLangGraphChat,
-} = await import('../server/services/aiWorkflow/langGraphAgent.ts');
+} = await import('../server/services/ai/workflow/langGraphAgent.ts');
 
 ensureSeedData();
 

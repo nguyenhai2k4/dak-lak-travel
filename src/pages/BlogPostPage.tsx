@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Footer } from '../components/Footer';
-import { Header } from '../components/Header';
+import { Footer } from '../components/layout/Footer';
+import { Header } from '../components/layout/Header';
 import { useAppContext } from '../context/AppContext';
 import { cmsApi } from '../services/cmsApi';
 import { CmsPostPublic } from '../types';

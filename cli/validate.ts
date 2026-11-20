@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_COVER_IMAGE } from '../server/services/postsService.ts';
+import { DEFAULT_COVER_IMAGE } from '../server/services/cms/postsService.ts';
 import { GlossaryItem } from '../src/types/index.ts';
 import { estimateReadTime } from './markdown.ts';
 import { ValidationIssue, ValidationReport } from './types.ts';
