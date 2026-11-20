@@ -10,6 +10,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/ping",
+      "destination": "/api/ping"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index"
     },

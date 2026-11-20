@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const outFile = path.resolve('server/dist/app.mjs');
+const outFile = path.resolve('server/bundle/app.mjs');
 fs.mkdirSync(path.dirname(outFile), { recursive: true });
 
 await build({
