@@ -1,4 +1,4 @@
-import { FlattenedStop } from '../types';
+import type { FlattenedStop } from '../types';
 
 export interface LatLngCoord {
   lat: number;

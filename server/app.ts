@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import express, { NextFunction, Request, Response } from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import { initArizeTelemetry } from './services/ai/arizeTelemetry.ts';
 import { DIST_DIR, IS_VERCEL, UPLOADS_DIR } from './config.ts';
 import { isUsingSupabase } from './db/database.ts';

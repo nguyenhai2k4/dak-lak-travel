@@ -2,14 +2,14 @@ import { AI_PRICE_POLICY } from '../../../config.ts';
 import { budgetMultipliers } from '../../../../src/data/plannerCatalog.ts';
 import { seasonsData } from '../../../../src/data/seasons.ts';
 import {
-  AccommodationRecord,
-  CapacityAndLogisticsPlan,
-  CompanionType,
-  DurationType,
-  IntakeState,
-  Language,
-  LogisticsRecord,
-  SeasonData,
+  type AccommodationRecord,
+  type CapacityAndLogisticsPlan,
+  type CompanionType,
+  type DurationType,
+  type IntakeState,
+  type Language,
+  type LogisticsRecord,
+  type SeasonData,
 } from '../../../../src/types/index.ts';
 import { listActiveLogistics, listActiveStays } from '../plannerDataService.ts';
 

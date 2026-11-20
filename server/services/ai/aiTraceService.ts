@@ -1,15 +1,15 @@
 import { getDb, isUsingSupabase } from '../../db/database.ts';
 import { getSupabaseAdmin } from '../../db/supabaseClient.ts';
 import {
-  AiChatIntent,
-  AiFeedbackRequest,
-  AutoEvalResult,
-  BudgetFeasibilityResult,
-  CapacityAndLogisticsPlan,
-  IntakeState,
-  Language,
-  PurposeAlignedSelection,
-  TraceRecord,
+  type AiChatIntent,
+  type AiFeedbackRequest,
+  type AutoEvalResult,
+  type BudgetFeasibilityResult,
+  type CapacityAndLogisticsPlan,
+  type IntakeState,
+  type Language,
+  type PurposeAlignedSelection,
+  type TraceRecord,
 } from '../../../src/types/index.ts';
 import { ServiceError } from '../core/errors.ts';
 

@@ -3,15 +3,15 @@ import { AI_PRICE_POLICY, AI_PRICE_TTL_HOURS, TAVILY_API_KEY } from '../../../co
 import { withOpenInferenceSpan } from '../arizeTelemetry.ts';
 import { budgetMultipliers } from '../../../../src/data/plannerCatalog.ts';
 import {
-  AiCitation,
-  BudgetFeasibilityResult,
-  CapacityAndLogisticsPlan,
-  IntakeState,
-  Language,
-  PricedPlaceItem,
+  type AiCitation,
+  type BudgetFeasibilityResult,
+  type CapacityAndLogisticsPlan,
+  type IntakeState,
+  type Language,
+  type PricedPlaceItem,
 } from '../../../../src/types/index.ts';
 import {
-  EnrichedPlaceRecord,
+  type EnrichedPlaceRecord,
   listEnrichedPlaces,
   upsertPlacePrice,
 } from '../plannerDataService.ts';

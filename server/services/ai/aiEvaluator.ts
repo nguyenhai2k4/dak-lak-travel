@@ -1,15 +1,15 @@
 import { dakLakPlaceDirectory } from '../../../src/data/places.ts';
 import {
-  AiChatResponse,
-  AiCitation,
-  AutoEvalCheckItem,
-  AutoEvalResult,
-  BudgetFeasibilityResult,
-  CapacityAndLogisticsPlan,
-  GeneratedDayPlan,
-  GeneratedExpenseItem,
-  IntakeState,
-  PurposeAlignedSelection,
+  type AiChatResponse,
+  type AiCitation,
+  type AutoEvalCheckItem,
+  type AutoEvalResult,
+  type BudgetFeasibilityResult,
+  type CapacityAndLogisticsPlan,
+  type GeneratedDayPlan,
+  type GeneratedExpenseItem,
+  type IntakeState,
+  type PurposeAlignedSelection,
 } from '../../../src/types/index.ts';
 import { computeLegMetrics } from '../../../src/utils/plannerHelpers.ts';
 

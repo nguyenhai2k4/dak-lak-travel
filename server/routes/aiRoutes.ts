@@ -19,17 +19,17 @@ import { LANGGRAPH_TOOL_NAMES } from '../services/ai/workflow/langGraphAgent.ts'
 import { requireAdmin, requireAuth } from '../services/core/auth.ts';
 import { isServiceError } from '../services/core/errors.ts';
 import {
-  AgenticIntent,
-  AiChatHistoryItem,
-  AiChatRequest,
-  AiFeedbackRequest,
-  BudgetType,
-  CompanionType,
-  DurationType,
-  ExpenseCategory,
-  IntakeState,
-  Language,
-  ThemeType,
+  type AgenticIntent,
+  type AiChatHistoryItem,
+  type AiChatRequest,
+  type AiFeedbackRequest,
+  type BudgetType,
+  type CompanionType,
+  type DurationType,
+  type ExpenseCategory,
+  type IntakeState,
+  type Language,
+  type ThemeType,
 } from '../../src/types/index.ts';
 
 export const aiRouter = Router();

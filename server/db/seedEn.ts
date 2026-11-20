@@ -1,4 +1,4 @@
-import { GlossaryItem } from '../../src/types/index.ts';
+import { type GlossaryItem } from '../../src/types/index.ts';
 
 export interface SeedEnEntry {
   title: string;

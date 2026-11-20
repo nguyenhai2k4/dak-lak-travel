@@ -1,4 +1,4 @@
-import { PlaceMeta, ThemeType } from '../types';
+import type { PlaceMeta, ThemeType } from '../types';
 
 export const themeCoverImages: Record<ThemeType, string> = {
   coffee: 'https://images.unsplash.com/photo-1513528916469-746b1cf609e2?auto=format&fit=crop&w=1400&q=80',

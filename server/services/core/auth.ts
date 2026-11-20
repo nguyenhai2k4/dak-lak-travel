@@ -1,9 +1,9 @@
 import crypto from 'node:crypto';
-import { NextFunction, Request, Response } from 'express';
+import { type NextFunction, type Request, type Response } from 'express';
 import { SESSION_COOKIE_NAME, SESSION_TTL_DAYS } from '../../config.ts';
 import { getDb, isUsingSupabase } from '../../db/database.ts';
 import { getSupabaseAdmin } from '../../db/supabaseClient.ts';
-import { UserRole } from '../../../src/types/index.ts';
+import { type UserRole } from '../../../src/types/index.ts';
 
 export interface AuthUser {
   id: number;

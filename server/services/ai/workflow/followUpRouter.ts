@@ -17,20 +17,20 @@ import {
 import { dakLakPlaceDirectory } from '../../../../src/data/places.ts';
 import { budgetMultipliers } from '../../../../src/data/plannerCatalog.ts';
 import {
-  AccommodationRecord,
-  AiChatRequest,
-  AiChatResponse,
-  AiStopOperation,
-  BudgetType,
-  ExpenseAllocationPcts,
-  ExpenseCategory,
-  ExpensePatch,
-  FollowUpActionType,
-  LogisticsRecord,
-  PlaceMeta,
-  ReorderDayOp,
-  StayMovePatch,
-  ThemeType,
+  type AccommodationRecord,
+  type AiChatRequest,
+  type AiChatResponse,
+  type AiStopOperation,
+  type BudgetType,
+  type ExpenseAllocationPcts,
+  type ExpenseCategory,
+  type ExpensePatch,
+  type FollowUpActionType,
+  type LogisticsRecord,
+  type PlaceMeta,
+  type ReorderDayOp,
+  type StayMovePatch,
+  type ThemeType,
 } from '../../../../src/types/index.ts';
 import { hasElephantRidingViolation } from '../aiEvaluator.ts';
 import { withOpenInferenceSpan } from '../arizeTelemetry.ts';

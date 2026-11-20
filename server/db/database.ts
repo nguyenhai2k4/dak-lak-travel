@@ -1,8 +1,11 @@
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
 import { DB_PATH, UPLOADS_DIR } from '../config.ts';
 export { isUsingSupabase } from './supabaseClient.ts';
+
+const require = createRequire(import.meta.url);
 
 let dbInstance: DatabaseSync | null = null;
 
@@ -12,7 +15,8 @@ export function getDb(): DatabaseSync {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-  const db = new DatabaseSync(DB_PATH);
+  const sqlite = require('node:sqlite') as typeof import('node:sqlite');
+  const db = new sqlite.DatabaseSync(DB_PATH);
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA foreign_keys = ON;');
 

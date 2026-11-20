@@ -23,18 +23,18 @@ import {
   themeLabels,
 } from '../../../../src/data/plannerCatalog.ts';
 import {
-  AiChatRequest,
-  AiChatResponse,
-  AiCitation,
-  BudgetFeasibilityResult,
-  CapacityAndLogisticsPlan,
-  GeneratedDayPlan,
-  GeneratedExpenseItem,
-  GeneratedItineraryMeta,
-  GeneratedSlotPlan,
-  IntakeState,
-  PurposeAlignedSelection,
-  RankedPlaceItem,
+  type AiChatRequest,
+  type AiChatResponse,
+  type AiCitation,
+  type BudgetFeasibilityResult,
+  type CapacityAndLogisticsPlan,
+  type GeneratedDayPlan,
+  type GeneratedExpenseItem,
+  type GeneratedItineraryMeta,
+  type GeneratedSlotPlan,
+  type IntakeState,
+  type PurposeAlignedSelection,
+  type RankedPlaceItem,
 } from '../../../../src/types/index.ts';
 import { computeLegMetrics } from '../../../../src/utils/plannerHelpers.ts';
 

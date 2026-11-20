@@ -1,4 +1,4 @@
-import { SeasonData } from '../types';
+import type { SeasonData } from '../types';
 
 export const seasonsData: SeasonData[] = [
   {

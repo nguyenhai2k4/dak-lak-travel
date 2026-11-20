@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response, Router } from 'express';
+import { type NextFunction, type Request, type Response, Router } from 'express';
 import { requireAdmin, requireAuth } from '../services/core/auth.ts';
 import { isServiceError } from '../services/core/errors.ts';
 import {

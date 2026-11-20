@@ -17,26 +17,26 @@ import {
 import { withOpenInferenceSpan } from '../arizeTelemetry.ts';
 import {
   searchGeneralQaWithTavily,
-  TavilyQaLookupStatus,
-  TavilySearchClient,
+  type TavilyQaLookupStatus,
+  type TavilySearchClient,
 } from '../tavilyService.ts';
 import { dakLakPlaceDirectory } from '../../../../src/data/places.ts';
 import { budgetMultipliers, sampleSchedulePresets } from '../../../../src/data/plannerCatalog.ts';
 import { seasonsData } from '../../../../src/data/seasons.ts';
 import {
-  AccommodationRecord,
-  AiChatRequest,
-  AiCitation,
-  AiStopOperation,
-  AgenticIntent,
-  BudgetType,
-  CompanionType,
-  DurationType,
-  IntakeState,
-  Language,
-  LogisticsRecord,
-  QuickClarificationOption,
-  ThemeType,
+  type AccommodationRecord,
+  type AiChatRequest,
+  type AiCitation,
+  type AiStopOperation,
+  type AgenticIntent,
+  type BudgetType,
+  type CompanionType,
+  type DurationType,
+  type IntakeState,
+  type Language,
+  type LogisticsRecord,
+  type QuickClarificationOption,
+  type ThemeType,
 } from '../../../../src/types/index.ts';
 import {
   inferPlaceMetadata,

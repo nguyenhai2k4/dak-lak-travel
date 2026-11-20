@@ -15,7 +15,7 @@ import {
   TAVILY_SEARCH_DEPTH,
   TAVILY_TIMEOUT_MS,
 } from '../../config.ts';
-import { AiCitation } from '../../../src/types/index.ts';
+import { type AiCitation } from '../../../src/types/index.ts';
 import { withOpenInferenceSpan } from './arizeTelemetry.ts';
 
 export interface TavilySearchClient {

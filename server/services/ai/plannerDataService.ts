@@ -3,13 +3,13 @@ import { getDb, isUsingSupabase } from '../../db/database.ts';
 import { getSupabaseAdmin } from '../../db/supabaseClient.ts';
 import { dakLakPlaceDirectory } from '../../../src/data/places.ts';
 import {
-  AccommodationRecord,
-  BudgetType,
-  CompanionType,
-  LogisticsRecord,
-  PlaceMeta,
-  PricedPlaceItem,
-  ThemeType,
+  type AccommodationRecord,
+  type BudgetType,
+  type CompanionType,
+  type LogisticsRecord,
+  type PlaceMeta,
+  type PricedPlaceItem,
+  type ThemeType,
 } from '../../../src/types/index.ts';
 
 export interface PlacePlannerMetadata {

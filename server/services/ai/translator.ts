@@ -1,5 +1,5 @@
 import { GEMINI_API_KEY, GEMINI_MODEL } from '../../config.ts';
-import { GlossaryItem } from '../../../src/types/index.ts';
+import { type GlossaryItem } from '../../../src/types/index.ts';
 import { sanitizeRichHtml } from '../core/sanitize.ts';
 
 export interface TranslatablePostPayload {

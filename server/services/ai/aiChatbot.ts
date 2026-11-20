@@ -6,15 +6,15 @@ import {
   plannerCatalog,
 } from '../../../src/data/plannerCatalog.ts';
 import {
-  AiChatRequest,
-  AiChatResponse,
-  AiCitation,
-  BudgetType,
-  CompanionType,
-  DurationType,
-  Language,
-  ThemeType,
-  TraceRecord,
+  type AiChatRequest,
+  type AiChatResponse,
+  type AiCitation,
+  type BudgetType,
+  type CompanionType,
+  type DurationType,
+  type Language,
+  type ThemeType,
+  type TraceRecord,
 } from '../../../src/types/index.ts';
 import { saveAiTrace } from './aiTraceService.ts';
 import { withOpenInferenceSpan, withSessionScope } from './arizeTelemetry.ts';

@@ -1,4 +1,4 @@
-import { Language } from '../types';
+import type { Language } from '../types';
 
 export interface I18nStrings {
   brandSub: string;

@@ -1,6 +1,6 @@
-import { dakLakPlaceDirectory, findPlaceMeta } from '../data/places';
-import { budgetMultipliers, plannerCatalog } from '../data/plannerCatalog';
-import {
+import { dakLakPlaceDirectory, findPlaceMeta } from '../data/places.ts';
+import { budgetMultipliers, plannerCatalog } from '../data/plannerCatalog.ts';
+import type {
   AiStopOperation,
   BudgetType,
   CompanionType,
@@ -16,8 +16,8 @@ import {
   PlaceMeta,
   ReorderDayOp,
   ThemeType,
-} from '../types';
-import { haversineDistanceKm, resolveGeoForStop } from './googleMaps';
+} from '../types/index.ts';
+import { haversineDistanceKm, resolveGeoForStop } from './googleMaps.ts';
 
 export function getDayCount(duration: DurationType): number {
   return duration === '2N1D' ? 2 : duration === '3N2D' ? 3 : 4;

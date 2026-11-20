@@ -1,4 +1,4 @@
-import { BentoArticleData, BentoArticleKey, BentoCardItem, RedEarthStory } from '../types';
+import type { BentoArticleData, BentoArticleKey, BentoCardItem, RedEarthStory } from '../types';
 
 export const bentoOverviewCards: BentoCardItem[] = [
   {

@@ -2,14 +2,14 @@ import { OpenInferenceSpanKind, SemanticConventions } from '@arizeai/openinferen
 import { GEMINI_API_KEY, GEMINI_DECISION_MODEL } from '../../../config.ts';
 import { withOpenInferenceSpan } from '../arizeTelemetry.ts';
 import {
-  BudgetFeasibilityResult,
-  CapacityAndLogisticsPlan,
-  CmsPostPublic,
-  IntakeState,
-  Language,
-  PricedPlaceItem,
-  PurposeAlignedSelection,
-  RankedPlaceItem,
+  type BudgetFeasibilityResult,
+  type CapacityAndLogisticsPlan,
+  type CmsPostPublic,
+  type IntakeState,
+  type Language,
+  type PricedPlaceItem,
+  type PurposeAlignedSelection,
+  type RankedPlaceItem,
 } from '../../../../src/types/index.ts';
 import { queryRelevantPublishedPosts } from '../../cms/postsService.ts';
 

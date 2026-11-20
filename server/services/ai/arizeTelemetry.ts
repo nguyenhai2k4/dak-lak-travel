@@ -1,4 +1,4 @@
-import { Attributes, Context, Span, SpanStatusCode, context, trace } from '@opentelemetry/api';
+import { type Attributes, type Context, type Span, SpanStatusCode, context, trace } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { BatchSpanProcessor, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';

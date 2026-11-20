@@ -1,7 +1,7 @@
 import { getDb, isUsingSupabase } from '../../db/database.ts';
 import { getSupabaseAdmin } from '../../db/supabaseClient.ts';
-import { CmsUser, UserRole } from '../../../src/types/index.ts';
-import { AuthUser, hashPassword } from '../core/auth.ts';
+import { type CmsUser, type UserRole } from '../../../src/types/index.ts';
+import { type AuthUser, hashPassword } from '../core/auth.ts';
 import { ServiceError } from '../core/errors.ts';
 
 interface UserRow {

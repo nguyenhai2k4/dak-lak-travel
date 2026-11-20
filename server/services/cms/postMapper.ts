@@ -1,14 +1,14 @@
 import {
-  BentoMetaConfig,
-  CmsPostAdmin,
-  CmsPostPublic,
-  CmsSectionType,
-  GlossaryItem,
-  Language,
-  PostStatus,
-  StoryMetaConfig,
-  ThemeType,
-  TranslationStatus,
+  type BentoMetaConfig,
+  type CmsPostAdmin,
+  type CmsPostPublic,
+  type CmsSectionType,
+  type GlossaryItem,
+  type Language,
+  type PostStatus,
+  type StoryMetaConfig,
+  type ThemeType,
+  type TranslationStatus,
 } from '../../../src/types/index.ts';
 
 export interface PostDbRow {
