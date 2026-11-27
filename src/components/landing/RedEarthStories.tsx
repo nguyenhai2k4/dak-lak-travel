@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { i18nDict } from '../../data/i18n';
+import { buildBackpackItemFromPost } from '../../utils/backpackHelpers';
+import { BackpackToggleButton } from '../backpack/BackpackIcon';
 
 export const RedEarthStories: React.FC = () => {
   const { lang, storyPosts, openPostPreview } = useAppContext();
@@ -151,6 +153,7 @@ export const RedEarthStories: React.FC = () => {
             {itemsToRender.map((item, idx) => {
               const offsetClass = item.storyConfig?.offsetClass || 'mt-0';
               const gradient = item.storyConfig?.gradient || 'from-[#132A1E] to-[#8C3B2B]';
+              const backpackItem = buildBackpackItemFromPost(item);
               return (
                 <article
                   key={`${item.id}-${idx}`}
@@ -158,7 +161,7 @@ export const RedEarthStories: React.FC = () => {
                 >
                   <div>
                     <div
-                      className={`h-44 bg-gradient-to-br ${gradient} p-5 relative overflow-hidden flex flex-col justify-between`}
+                      className={`h-44 bg-gradient-to-br ${gradient} p-4 relative overflow-hidden flex flex-col justify-between`}
                     >
                       <img
                         src={item.image}
@@ -167,9 +170,12 @@ export const RedEarthStories: React.FC = () => {
                         className="drift-card-art absolute inset-0 w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0D1D14]/80 via-[#0D1D14]/25 to-black/25 pointer-events-none" />
-                      <span className="relative z-10 self-start px-2.5 py-1 rounded-full bg-black/45 backdrop-blur-xs text-[#F7F3EB] text-[10px] font-bold uppercase tracking-wider border border-white/20">
-                        {item.category}
-                      </span>
+                      <div className="relative z-10 flex items-start justify-between gap-2">
+                        <span className="px-2.5 py-1 rounded-full bg-black/45 backdrop-blur-xs text-[#F7F3EB] text-[10px] font-bold uppercase tracking-wider border border-white/20 max-w-[170px] truncate">
+                          {item.category}
+                        </span>
+                        <BackpackToggleButton item={backpackItem} variant="card-overlay" />
+                      </div>
                       <span className="relative z-10 text-[11px] font-mono text-stone-100/95 drop-shadow">
                         {item.location}
                       </span>
@@ -189,7 +195,7 @@ export const RedEarthStories: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => openPostPreview(item)}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C3B2B] group-hover:text-[#D48C46] transition-colors"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8C3B2B] group-hover:text-[#D48C46] transition-colors cursor-pointer"
                     >
                       <span>{item.cta}</span>
                       <span className="transition-transform group-hover:translate-x-1">→</span>

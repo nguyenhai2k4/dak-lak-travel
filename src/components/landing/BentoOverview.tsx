@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { i18nDict } from '../../data/i18n';
+import { buildBackpackItemFromPost } from '../../utils/backpackHelpers';
+import { BackpackToggleButton } from '../backpack/BackpackIcon';
 
 const DEFAULT_BENTO_PATTERN: Array<'large' | 'small'> = [
   'large',
@@ -74,6 +76,8 @@ export const BentoOverview: React.FC = () => {
               .filter(Boolean)
               .join(' ');
 
+            const backpackItem = buildBackpackItemFromPost(post);
+
             if (imageLayout === 'left') {
               return (
                 <article
@@ -94,6 +98,9 @@ export const BentoOverview: React.FC = () => {
                         className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                         loading="lazy"
                       />
+                      <div className="absolute top-3 right-3 z-10">
+                        <BackpackToggleButton item={backpackItem} variant="card-overlay" />
+                      </div>
                     </div>
 
                     <div className="sm:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-5">
@@ -103,11 +110,11 @@ export const BentoOverview: React.FC = () => {
                         </h3>
                         <p className="text-sm text-stone-600 leading-relaxed">{post.excerpt}</p>
                       </div>
-                      <div className="pt-4 border-t border-stone-200/60">
+                      <div className="pt-4 border-t border-stone-200/60 flex items-center justify-between gap-3">
                         <button
                           type="button"
                           onClick={() => openPostPreview(post)}
-                          className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#8C3B2B] hover:text-[#132A1E] transition-colors group/btn"
+                          className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#8C3B2B] hover:text-[#132A1E] transition-colors group/btn cursor-pointer"
                         >
                           <span>{post.cta}</span>
                           <span className="transition-transform group-hover/btn:translate-x-1">→</span>
@@ -142,6 +149,9 @@ export const BentoOverview: React.FC = () => {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                     loading="lazy"
                   />
+                  <div className="absolute top-3 right-3 z-10">
+                    <BackpackToggleButton item={backpackItem} variant="card-overlay" />
+                  </div>
                 </div>
                 <div className={`${paddingClass} flex-1 flex flex-col justify-between`}>
                   <div className={size === 'large' ? 'space-y-3' : 'space-y-2.5'}>
@@ -152,11 +162,11 @@ export const BentoOverview: React.FC = () => {
                     </h3>
                     <p className={`${descClass} text-stone-600 leading-relaxed`}>{post.excerpt}</p>
                   </div>
-                  <div className="pt-4 border-t border-stone-200/60">
+                  <div className="pt-4 border-t border-stone-200/60 flex items-center justify-between gap-3">
                     <button
                       type="button"
                       onClick={() => openPostPreview(post)}
-                      className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#8C3B2B] hover:text-[#132A1E] transition-colors group/btn"
+                      className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#8C3B2B] hover:text-[#132A1E] transition-colors group/btn cursor-pointer"
                     >
                       <span>{post.cta}</span>
                       <span className="transition-transform group-hover/btn:translate-x-1">→</span>

@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { i18nDict } from '../../data/i18n';
 import { sampleSchedulePresets } from '../../data/plannerCatalog';
-import { AiChatPopup } from '../ai/AiChatPopup';
 import { ChatThread } from '../ai/ChatThread';
-import { ItineraryCanvasModal } from './ItineraryCanvasModal';
+import { BackpackIcon } from '../backpack/BackpackIcon';
 
 const QUICK_QA_SUGGESTIONS = {
   vi: [
@@ -61,6 +60,9 @@ export const ItineraryPlanner: React.FC = () => {
     activeSampleKey,
     chatHistory,
     pendingTurn,
+    backpackItems,
+    openBackpackDrawer,
+    optimizeBackpackWithAi,
     selectSampleSchedule,
     submitMainChatPrompt,
     switchPlannerResultTab,
@@ -166,6 +168,50 @@ export const ItineraryPlanner: React.FC = () => {
               </div>
             )}
 
+            {/* Trip Backpack Bridge Banner when user has saved destinations */}
+            {backpackItems.length > 0 && (
+              <div className="max-w-4xl mx-auto w-full rounded-2xl bg-white/10 backdrop-blur-md border border-[#D48C46]/45 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 text-xs sm:text-sm text-[#F7F3EB]">
+                  <span className="w-8 h-8 rounded-xl bg-[#D48C46]/20 border border-[#D48C46]/50 text-[#D48C46] flex items-center justify-center shrink-0">
+                    <BackpackIcon className="w-4 h-4" filled />
+                  </span>
+                  <span>
+                    {isEn ? (
+                      <>
+                        Your Trip Backpack has{' '}
+                        <strong className="text-[#E6C29F]">{backpackItems.length} saved stops</strong>
+                        . Let AI organize them into an optimal route or open your Backpack anytime.
+                      </>
+                    ) : (
+                      <>
+                        Balo Hành Trình đang có{' '}
+                        <strong className="text-[#E6C29F]">{backpackItems.length} điểm đến đã lưu</strong>
+                        . Bạn có thể nhờ AI tối ưu lộ trình từ chính các điểm này.
+                      </>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={openBackpackDrawer}
+                    className="px-3 py-1.5 rounded-xl bg-white/12 hover:bg-white/20 border border-white/20 text-xs font-semibold text-[#F7F3EB] transition-colors cursor-pointer"
+                  >
+                    {isEn ? 'View Backpack' : 'Xem Balo'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isThinking}
+                    onClick={() => void optimizeBackpackWithAi()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#D48C46] hover:bg-[#c57d36] text-[#132A1E] text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    <i className="fa-solid fa-wand-magic-sparkles text-[10px]" aria-hidden="true" />
+                    <span>{isEn ? 'Optimize My Stops' : 'Tối ưu với AI'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Inline Chat Thread */}
             <ChatThread variant="inline" />
 
@@ -252,10 +298,6 @@ export const ItineraryPlanner: React.FC = () => {
               </div>
             </form>
           </div>
-
-          {/* STATE 2: FULL-SCREEN SPLIT TRAVEL CONSULTING CANVAS */}
-          {isSubmitted && <ItineraryCanvasModal />}
-          {isSubmitted && <AiChatPopup />}
         </div>
       </div>
     </section>

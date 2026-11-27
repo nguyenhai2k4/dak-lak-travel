@@ -697,6 +697,7 @@ export function createDakLakLangGraphTools(
             budgetResult,
             {
               lang: effectiveReq.lang,
+              pinnedPlaces: effectiveReq.backpackItems?.map((b) => b.title).filter(Boolean),
               fetchFn: opts?.fetchFn,
             }
           );

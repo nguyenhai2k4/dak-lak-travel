@@ -196,6 +196,35 @@ function sanitizeCurrentExpenses(raw: unknown): AiChatRequest['currentExpenses']
   return items.length > 0 ? items : undefined;
 }
 
+function sanitizeBackpackItems(raw: unknown): AiChatRequest['backpackItems'] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const items: NonNullable<AiChatRequest['backpackItems']> = [];
+  for (const entry of raw.slice(0, 15)) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const item = entry as Record<string, unknown>;
+    const title = typeof item.title === 'string' ? item.title.trim().slice(0, 120) : '';
+    if (!title) continue;
+    const location = typeof item.location === 'string' ? item.location.trim().slice(0, 120) : 'Đắk Lắk';
+    const themeKey = asTheme(item.themeKey);
+    const category = typeof item.category === 'string' ? item.category.trim().slice(0, 80) : undefined;
+    const areaCluster =
+      typeof item.areaCluster === 'string' ? item.areaCluster.trim().slice(0, 80) : undefined;
+    const seasonHint =
+      typeof item.seasonHint === 'string' ? item.seasonHint.trim().slice(0, 80) : undefined;
+    items.push({
+      title,
+      location,
+      themeKey,
+      ...(category ? { category } : {}),
+      ...(areaCluster ? { areaCluster } : {}),
+      ...(seasonHint ? { seasonHint } : {}),
+    });
+  }
+  return items.length > 0 ? items : undefined;
+}
+
 aiRouter.get('/status', (_req, res) => {
   res.json({
     configured: Boolean(getGeminiApiKey()),
@@ -267,6 +296,7 @@ aiRouter.post('/chat', async (req, res) => {
 
     const draftIntake = sanitizeDraftIntake(body.draftIntake);
     const currentExpenses = sanitizeCurrentExpenses(body.currentExpenses);
+    const backpackItems = sanitizeBackpackItems(body.backpackItems);
 
     const chatRequest: AiChatRequest = {
       message,
@@ -283,6 +313,7 @@ aiRouter.post('/chat', async (req, res) => {
       ...(sessionId ? { sessionId } : {}),
       ...(draftIntake ? { draftIntake } : {}),
       ...(currentExpenses ? { currentExpenses } : {}),
+      ...(backpackItems ? { backpackItems } : {}),
     };
 
     const result = await handleAiChat(chatRequest);

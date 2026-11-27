@@ -13,6 +13,8 @@ import { cmsApi } from '../services/cmsApi';
 import {
   AiChatIntent,
   AiCitation,
+  BackpackAiInsight,
+  BackpackItem,
   BentoArticleKey,
   BudgetType,
   ChatTurn,
@@ -37,7 +39,14 @@ import {
   QuickClarificationOption,
   SampleSchedulePreset,
   ThemeType,
+  ToastAction,
 } from '../types';
+import {
+  buildManualWorkingDaysFromBackpack,
+  loadBackpackFromStorage,
+  saveBackpackToStorage,
+  summarizeBackpackGeography,
+} from '../utils/backpackHelpers';
 import { copyToClipboard } from '../utils/clipboard';
 import { haversineDistanceKm, resolveGeoForStop } from '../utils/googleMaps';
 import { getFallbackBentoPosts, getFallbackStoryPosts } from '../utils/legacyFallbackPosts';
@@ -72,7 +81,27 @@ interface AppContextValue {
   setLanguage: (nextLang: Language) => void;
   toastMessage: string;
   toastVisible: boolean;
-  showToast: (msg: string) => void;
+  toastAction: ToastAction | null;
+  showToast: (msg: string, action?: ToastAction | null) => void;
+
+  // Trip Backpack ("Balo Hành Trình")
+  backpackItems: BackpackItem[];
+  isBackpackOpen: boolean;
+  backpackPulseTick: number;
+  backpackAiInsights: BackpackAiInsight[];
+  isBackpackAiLoading: boolean;
+  openBackpackDrawer: () => void;
+  closeBackpackDrawer: () => void;
+  isInBackpack: (id: string) => boolean;
+  toggleBackpackItem: (item: BackpackItem) => void;
+  addBackpackItem: (item: BackpackItem) => void;
+  removeBackpackItem: (id: string) => void;
+  moveBackpackItem: (index: number, delta: number) => void;
+  clearBackpack: () => void;
+  openCanvasFromBackpack: () => void;
+  askBackpackAi: (action: 'pricing' | 'transport' | 'custom', customQuestion?: string) => Promise<void>;
+  optimizeBackpackWithAi: () => Promise<void>;
+  clearBackpackAiInsights: () => void;
 
   // Culture focus highlight in BentoOverview
   cultureFocusActive: boolean;
@@ -166,7 +195,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [lang, setLangState] = useState<Language>('vi');
   const [toastMessage, setToastMessage] = useState('Đã cập nhật thông tin');
   const [toastVisible, setToastVisible] = useState(false);
+  const [toastAction, setToastAction] = useState<ToastAction | null>(null);
   const toastTimerRef = useRef<number | null>(null);
+
+  // Trip Backpack State (persisted across reloads and routes)
+  const [backpackItems, setBackpackItems] = useState<BackpackItem[]>(() => loadBackpackFromStorage());
+  const [isBackpackOpen, setIsBackpackOpen] = useState(false);
+  const [backpackPulseTick, setBackpackPulseTick] = useState(0);
+  const [backpackAiInsights, setBackpackAiInsights] = useState<BackpackAiInsight[]>([]);
+  const [isBackpackAiLoading, setIsBackpackAiLoading] = useState(false);
+  const backpackAiAbortRef = useRef<AbortController | null>(null);
 
   const [cultureFocusActive, setCultureFocusActive] = useState(false);
   const cultureFocusTimerRef = useRef<number | null>(null);
@@ -235,6 +273,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     draftIntake,
     undoStack,
     redoStack,
+    backpackItems,
   });
   stateRef.current = {
     lang,
@@ -252,15 +291,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     draftIntake,
     undoStack,
     redoStack,
+    backpackItems,
   };
 
-  const showToast = useCallback((msg: string) => {
+  useEffect(() => {
+    saveBackpackToStorage(backpackItems);
+  }, [backpackItems]);
+
+  const showToast = useCallback((msg: string, action: ToastAction | null = null) => {
     setToastMessage(msg);
+    setToastAction(action);
     setToastVisible(true);
     if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
     toastTimerRef.current = window.setTimeout(() => {
       setToastVisible(false);
-    }, 2800);
+    }, action ? 4200 : 2800);
   }, []);
 
   const setLanguage = useCallback(
@@ -277,12 +322,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Body scroll lock when modal, drawer, or full-screen canvas is open
   useEffect(() => {
-    const shouldLock = isSubmitted || modalArticle !== null || isDsDrawerOpen;
+    const shouldLock = isSubmitted || modalArticle !== null || isDsDrawerOpen || isBackpackOpen;
     document.body.style.overflow = shouldLock ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isSubmitted, modalArticle, isDsDrawerOpen]);
+  }, [isSubmitted, modalArticle, isDsDrawerOpen, isBackpackOpen]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -427,6 +472,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (e.key === 'Escape') {
         setModalArticle(null);
         setIsDsDrawerOpen(false);
+        setIsBackpackOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -654,6 +700,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const isFollowUp = opts.isPopup && !snapshotState.draftIntake?.needsClarification;
 
       try {
+        const serializedBackpack =
+          snapshotState.backpackItems.length > 0
+            ? snapshotState.backpackItems.map((b) => ({
+                title: b.title,
+                location: b.location,
+                themeKey: b.themeKey,
+                category: b.category,
+                areaCluster: b.areaCluster,
+                ...(b.seasonHint ? { seasonHint: b.seasonHint } : {}),
+              }))
+            : undefined;
+
         const aiRes = await aiApi.chat(
           {
             message: prompt,
@@ -661,6 +719,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             isFollowUp,
             sessionId: chatSessionIdRef.current,
             draftIntake: snapshotState.draftIntake || undefined,
+            ...(serializedBackpack ? { backpackItems: serializedBackpack } : {}),
             currentExpenses: snapshotState.expenses.map((e) => ({
               title: e.title,
               cat: e.cat,
@@ -1574,6 +1633,372 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     planForTopic(targetTheme, title);
   }, [modalArticle, planForTopic]);
 
+  const openBackpackDrawer = useCallback(() => {
+    setIsBackpackOpen(true);
+  }, []);
+
+  const closeBackpackDrawer = useCallback(() => {
+    setIsBackpackOpen(false);
+  }, []);
+
+  const isInBackpack = useCallback(
+    (id: string) => backpackItems.some((item) => item.id === id),
+    [backpackItems]
+  );
+
+  const addBackpackItem = useCallback(
+    (item: BackpackItem) => {
+      const current = stateRef.current.backpackItems;
+      const isEn = stateRef.current.lang === 'en';
+      if (current.some((existing) => existing.id === item.id)) {
+        showToast(
+          isEn ? `"${item.title}" is already in your Backpack` : `"${item.title}" đã có sẵn trong Balo`,
+          {
+            label: isEn ? `View (${current.length})` : `Xem Balo (${current.length})`,
+            onClick: () => setIsBackpackOpen(true),
+          }
+        );
+        return;
+      }
+
+      const nextCount = current.length + 1;
+      setBackpackItems((prev) =>
+        prev.some((existing) => existing.id === item.id) ? prev : [...prev, item]
+      );
+      setBackpackPulseTick((n) => n + 1);
+      showToast(
+        isEn ? `Packed "${item.title}" into your Backpack` : `Đã bỏ "${item.title}" vào Balo Hành Trình`,
+        {
+          label: isEn ? `View Backpack (${nextCount})` : `Xem Balo (${nextCount})`,
+          onClick: () => setIsBackpackOpen(true),
+        }
+      );
+    },
+    [showToast]
+  );
+
+  const removeBackpackItem = useCallback(
+    (id: string) => {
+      const target = stateRef.current.backpackItems.find((b) => b.id === id);
+      if (!target) return;
+      const isEn = stateRef.current.lang === 'en';
+      setBackpackItems((prev) => prev.filter((b) => b.id !== id));
+      showToast(
+        isEn ? `Removed "${target.title}" from Backpack` : `Đã gỡ "${target.title}" khỏi Balo`,
+        {
+          label: isEn ? 'Undo' : 'Hoàn tác',
+          onClick: () => {
+            setBackpackItems((prev) =>
+              prev.some((existing) => existing.id === target.id) ? prev : [...prev, target]
+            );
+            setBackpackPulseTick((n) => n + 1);
+          },
+        }
+      );
+    },
+    [showToast]
+  );
+
+  const toggleBackpackItem = useCallback(
+    (item: BackpackItem) => {
+      const exists = stateRef.current.backpackItems.some((b) => b.id === item.id);
+      if (exists) {
+        removeBackpackItem(item.id);
+      } else {
+        addBackpackItem(item);
+      }
+    },
+    [addBackpackItem, removeBackpackItem]
+  );
+
+  const moveBackpackItem = useCallback((index: number, delta: number) => {
+    setBackpackItems((prev) => {
+      const target = index + delta;
+      if (index < 0 || index >= prev.length || target < 0 || target >= prev.length) return prev;
+      const copy = [...prev];
+      const [moved] = copy.splice(index, 1);
+      copy.splice(target, 0, moved);
+      return copy;
+    });
+  }, []);
+
+  const clearBackpack = useCallback(() => {
+    const previous = [...stateRef.current.backpackItems];
+    if (previous.length === 0) return;
+    const isEn = stateRef.current.lang === 'en';
+    setBackpackItems([]);
+    setBackpackAiInsights([]);
+    showToast(isEn ? 'Cleared all destinations from Backpack' : 'Đã làm trống Balo Hành Trình', {
+      label: isEn ? 'Undo' : 'Hoàn tác',
+      onClick: () => {
+        setBackpackItems(previous);
+        setBackpackPulseTick((n) => n + 1);
+      },
+    });
+  }, [showToast]);
+
+  const clearBackpackAiInsights = useCallback(() => {
+    setBackpackAiInsights([]);
+  }, []);
+
+  const openCanvasFromBackpack = useCallback(() => {
+    const items = stateRef.current.backpackItems;
+    const isEn = stateRef.current.lang === 'en';
+    if (items.length === 0) {
+      showToast(
+        isEn
+          ? 'Add at least 1 destination to your Backpack first'
+          : 'Hãy lưu ít nhất 1 điểm đến vào Balo trước nhé'
+      );
+      return;
+    }
+
+    const geoSummary = summarizeBackpackGeography(items);
+    const chosenDuration = stateRef.current.duration || geoSummary.suggestedDuration;
+    const manualDays = buildManualWorkingDaysFromBackpack(items, chosenDuration, stateRef.current.lang);
+    const nextExpenses = buildDefaultExpenses(stateRef.current.budget, chosenDuration);
+
+    if (stateRef.current.isSubmitted) {
+      pushSnapshot();
+    } else {
+      clearHistory();
+    }
+
+    setTheme(geoSummary.dominantTheme);
+    setActiveSampleKey('');
+    setWorkingDays(manualDays);
+    setExpenses(nextExpenses);
+    setItineraryMeta({
+      title: isEn
+        ? `My Đắk Lắk Backpack (${items.length} Stops)`
+        : `Hành trình Balo Đắk Lắk (${items.length} điểm tự chọn)`,
+      stayMove:
+        budgetMultipliers[stateRef.current.budget]?.stayMove ||
+        budgetMultipliers.standard.stayMove,
+      routeTip: isEn
+        ? `Grouped across ${geoSummary.areas.join(', ')} (~${geoSummary.estimatedRouteKm} km). Drag stops between days or ask AI Concierge anytime.`
+        : `Đã gom nhóm theo cụm ${geoSummary.areas.join(', ')} (~${geoSummary.estimatedRouteKm} km). Bạn có thể kéo thả sắp xếp tự do hoặc hỏi AI Concierge bất cứ lúc nào.`,
+      tips: [],
+      totalEstimatedKm: geoSummary.estimatedRouteKm,
+    });
+    setMapDayFilterState('all');
+    setScheduleDayFilterState('all');
+    setSelectedStopIndex(0);
+    setCollapsedDays({});
+    setShowMapPlaceCard(true);
+    setMobilePane('itinerary');
+    setIsPopupOpen(false);
+    setIsBackpackOpen(false);
+    setModalArticle(null);
+    setIsSubmitted(true);
+    showToast(
+      isEn
+        ? `Opened your ${items.length} packed stops on the Map & Schedule Canvas`
+        : `Đã mở ${items.length} điểm từ Balo lên Bản đồ & Lịch trình tự sắp xếp`
+    );
+  }, [clearHistory, pushSnapshot, showToast]);
+
+  const askBackpackAi = useCallback(
+    async (action: 'pricing' | 'transport' | 'custom', customQuestion?: string) => {
+      const items = stateRef.current.backpackItems;
+      const isEn = stateRef.current.lang === 'en';
+      if (items.length === 0) {
+        showToast(
+          isEn
+            ? 'Pack at least 1 destination so AI can tailor advice for your list'
+            : 'Hãy lưu ít nhất 1 điểm vào Balo để AI tư vấn sát thực tế hơn'
+        );
+        return;
+      }
+
+      if (backpackAiAbortRef.current) {
+        backpackAiAbortRef.current.abort();
+      }
+      const controller = new AbortController();
+      backpackAiAbortRef.current = controller;
+
+      const placeNames = items.map((b) => `${b.title} (${b.location})`).join('; ');
+      const curDuration = stateRef.current.duration;
+      const curCompanion = companionLabels[stateRef.current.companion] || stateRef.current.companion;
+      const curBudget = budgetMultipliers[stateRef.current.budget]?.label || stateRef.current.budget;
+      const seasonHints = Array.from(new Set(items.map((b) => b.seasonHint).filter(Boolean))).join(', ');
+
+      let prompt = '';
+      if (action === 'pricing') {
+        prompt = isEn
+          ? `Estimate ticket prices, entrance fees, food, lodging, and approximate total VND budget for these specific Đắk Lắk destinations in my Backpack: ${placeNames}. Trip context: ${curDuration}, ${curCompanion}, ${curBudget}${seasonHints ? `, season: ${seasonHints}` : ''}. Please give a clear itemized cost breakdown without creating a full schedule.`
+          : `Ước tính chi tiết giá vé tham quan, chi phí ăn uống, lưu trú và tổng ngân sách dự kiến (VNĐ) cho đúng các điểm trong Balo của mình: ${placeNames}. Bối cảnh chuyến đi: ${curDuration}, nhóm ${curCompanion}, mức ${curBudget}${seasonHints ? `, thời điểm ${seasonHints}` : ''}. Trả lời gọn rõ dạng gạch đầu dòng (chưa cần tạo canvas lịch trình).`;
+      } else if (action === 'transport') {
+        prompt = isEn
+          ? `Recommend the best transportation options (motorbike rental, private car with driver, Grab/taxi) and approximate driving times between these Đắk Lắk destinations in my Backpack: ${placeNames}. Trip context: ${curDuration}, ${curCompanion}${seasonHints ? `, season: ${seasonHints}` : ''}.`
+          : `Tư vấn chi tiết phương tiện di chuyển phù hợp (thuê xe máy, thuê ô tô riêng có tài xế hay taxi/Grab), quãng đường, thời gian chạy xe và lưu ý cung đường giữa đúng các điểm trong Balo của mình: ${placeNames}. Nhóm ${curCompanion}, dự kiến ${curDuration}${seasonHints ? `, thời điểm ${seasonHints}` : ''}.`;
+      } else {
+        const trimmed = (customQuestion || '').trim();
+        if (!trimmed) return;
+        prompt = isEn
+          ? `About my Đắk Lắk Backpack destinations (${placeNames}): ${trimmed}`
+          : `Liên quan đến các điểm trong Balo Đắk Lắk của mình (${placeNames}): ${trimmed}`;
+      }
+
+      setIsBackpackAiLoading(true);
+      try {
+        const geoSummary = summarizeBackpackGeography(items);
+        const manualPreviewDays = buildManualWorkingDaysFromBackpack(
+          items,
+          curDuration,
+          stateRef.current.lang
+        );
+        const res = await aiApi.chat(
+          {
+            message: prompt,
+            lang: stateRef.current.lang,
+            isFollowUp: false,
+            sessionId: chatSessionIdRef.current,
+            backpackItems: items.map((b) => ({
+              title: b.title,
+              location: b.location,
+              themeKey: b.themeKey,
+              category: b.category,
+              areaCluster: b.areaCluster,
+              ...(b.seasonHint ? { seasonHint: b.seasonHint } : {}),
+            })),
+            currentState: {
+              theme: geoSummary.dominantTheme,
+              duration: curDuration,
+              companion: stateRef.current.companion,
+              budget: stateRef.current.budget,
+              days: manualPreviewDays.map((d) => ({
+                day: d.day,
+                title: d.title,
+                slots: d.slots.map((s) => ({
+                  title: s.title,
+                  location: s.location,
+                  time: s.time,
+                })),
+              })),
+            },
+          },
+          { signal: controller.signal }
+        );
+
+        setBackpackAiInsights((prev) => [
+          {
+            id: `bp-ai-${Date.now()}`,
+            action,
+            prompt:
+              action === 'pricing'
+                ? isEn
+                  ? 'Pricing & Tickets Estimate'
+                  : 'Ước tính chi phí & giá vé'
+                : action === 'transport'
+                  ? isEn
+                    ? 'Transportation & Route Options'
+                    : 'Phương tiện & cung đường'
+                  : (customQuestion || '').trim(),
+            reply: res.reply,
+            citations: res.citations,
+            provider: res.provider,
+            createdAt: Date.now(),
+          },
+          ...prev.slice(0, 4),
+        ]);
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+        const geoSummary = summarizeBackpackGeography(items);
+        const estExpenses = buildDefaultExpenses(stateRef.current.budget, curDuration);
+        const totalVnd = estExpenses.reduce((s, e) => s + e.amount, 0);
+
+        const fallbackReply =
+          action === 'pricing'
+            ? isEn
+              ? `Estimated budget for your ${items.length} packed stop(s) (${curDuration}, ${curBudget}): ~${totalVnd.toLocaleString('en-US')} VND total.\n• Lodging: ~${estExpenses[0]?.amount.toLocaleString('en-US')} VND\n• Local transport: ~${estExpenses[1]?.amount.toLocaleString('en-US')} VND\n• Food & coffee: ~${estExpenses[2]?.amount.toLocaleString('en-US')} VND\n• Tickets & experiences: ~${estExpenses[3]?.amount.toLocaleString('en-US')} VND (e.g., World Coffee Museum ~150k, Dray Nur ~40k, Yok Đôn ethical elephant walk ~800k–1.6M).`
+              : `Dự toán tham khảo cho ${items.length} điểm trong Balo (${curDuration}, mức ${curBudget}): tổng khoảng ~${totalVnd.toLocaleString('vi-VN')}đ.\n• Lưu trú: ~${estExpenses[0]?.amount.toLocaleString('vi-VN')}đ\n• Di chuyển tuyến điểm: ~${estExpenses[1]?.amount.toLocaleString('vi-VN')}đ\n• Ẩm thực & cà phê đặc sản: ~${estExpenses[2]?.amount.toLocaleString('vi-VN')}đ\n• Vé tham quan & trải nghiệm: ~${estExpenses[3]?.amount.toLocaleString('vi-VN')}đ (Bảo tàng Thế giới Cà phê ~150k, thác Dray Nur ~40k, đi bộ ngắm voi Yok Đôn ~800k–1,6tr).`
+            : action === 'transport'
+              ? isEn
+                ? `Your ${items.length} stop(s) span ${geoSummary.areas.join(', ')} (~${geoSummary.estimatedRouteKm} km total).\n• Inside BMT Center: Grab/taxi or motorbike rental (~130k–160k VND/day).\n• Outer clusters (Hồ Lắk ~52 km south on QL27; Buôn Đôn/Yok Đôn ~42 km northwest; Dray Nur ~28 km): private car with driver (~1.1M–1.5M VND/day) is safest for families/groups, while motorbikes suit solo/couples on dry days.`
+                : `${items.length} điểm trong Balo trải qua các cụm: ${geoSummary.areas.join(', ')} (tổng quãng đường ước tính ~${geoSummary.estimatedRouteKm} km).\n• Trong nội thành BMT: đi taxi/Grab hoặc thuê xe máy (~130k–160k/ngày) rất linh hoạt.\n• Tuyến xa (Hồ Lắk ~52 km theo QL27; Buôn Đôn/Yok Đôn ~42 km; Dray Nur ~28 km): đi gia đình/nhóm nên thuê ô tô riêng có tài xế (~1,1–1,5 triệu/ngày), đi cặp đôi hoặc độc hành ngày khô ráo có thể đi xe máy.`
+              : isEn
+                ? 'AI server is temporarily unreachable. You can still open your Backpack directly on the Map & Schedule Canvas to inspect routes and distances!'
+                : 'Máy chủ AI tạm thời chưa phản hồi. Bạn vẫn có thể bấm "Mở bản đồ & Tự sắp xếp" để xem tọa độ, khoảng cách và tự chỉnh lịch trình ngay lập tức!';
+
+        setBackpackAiInsights((prev) => [
+          {
+            id: `bp-ai-fb-${Date.now()}`,
+            action,
+            prompt:
+              action === 'pricing'
+                ? isEn
+                  ? 'Pricing & Tickets Estimate'
+                  : 'Ước tính chi phí & giá vé'
+                : action === 'transport'
+                  ? isEn
+                    ? 'Transportation & Route Options'
+                    : 'Phương tiện & cung đường'
+                  : (customQuestion || '').trim(),
+            reply: fallbackReply,
+            provider: 'local-estimate',
+            createdAt: Date.now(),
+          },
+          ...prev.slice(0, 4),
+        ]);
+      } finally {
+        setIsBackpackAiLoading(false);
+      }
+    },
+    [showToast]
+  );
+
+  const optimizeBackpackWithAi = useCallback(async () => {
+    const items = stateRef.current.backpackItems;
+    const isEn = stateRef.current.lang === 'en';
+    if (items.length === 0) {
+      showToast(
+        isEn
+          ? 'Add at least 1 destination to your Backpack before optimizing'
+          : 'Hãy lưu ít nhất 1 điểm đến vào Balo trước khi tối ưu lịch trình'
+      );
+      return;
+    }
+
+    const geoSummary = summarizeBackpackGeography(items);
+    const chosenDuration = stateRef.current.duration || geoSummary.suggestedDuration;
+    const placeList = items.map((b) => b.title).join(', ');
+    const curCompanion = companionLabels[stateRef.current.companion] || stateRef.current.companion;
+    const curBudget = budgetMultipliers[stateRef.current.budget]?.label || stateRef.current.budget;
+    const seasonHints = Array.from(new Set(items.map((b) => b.seasonHint).filter(Boolean))).join(', ');
+
+    const prompt = isEn
+      ? `Organize an optimized ${chosenDuration} Đắk Lắk itinerary for ${curCompanion} with a ${curBudget} budget that MUST include all destinations in my Trip Backpack: ${placeList}${seasonHints ? ` (preferred timing: ${seasonHints})` : ''}. Group nearby areas logically to minimize backtracking, add meal suggestions, and provide a realistic VND budget breakdown.`
+      : `Lên lịch trình tối ưu ${chosenDuration} khám phá Đắk Lắk cho nhóm ${curCompanion}, ngân sách ${curBudget}, BẮT BUỘC bao gồm đầy đủ các điểm trong Balo của mình: ${placeList}${seasonHints ? ` (thời điểm ưu tiên: ${seasonHints})` : ''}. Hãy gom cụm theo địa lý để đỡ di chuyển vòng vèo, sắp xếp khung giờ hợp lý, bổ sung bữa ăn đặc sản và dự toán chi phí chi tiết.`;
+
+    setIsBackpackOpen(false);
+    setModalArticle(null);
+
+    // Pre-seed the Canvas immediately with manual days so if AI fails or takes a moment, user has instant visual context
+    const manualDays = buildManualWorkingDaysFromBackpack(items, chosenDuration, stateRef.current.lang);
+    setTheme(geoSummary.dominantTheme);
+    setWorkingDays(manualDays);
+    setExpenses(buildDefaultExpenses(stateRef.current.budget, chosenDuration));
+    setIsSubmitted(true);
+    setIsPopupOpen(true);
+
+    showToast(
+      isEn
+        ? `AI Concierge is optimizing a ${chosenDuration} route for your ${items.length} packed stops...`
+        : `AI Concierge đang tối ưu cung đường ${chosenDuration} cho ${items.length} điểm trong Balo...`
+    );
+
+    await runChatSubmission(prompt, {
+      isPopup: true,
+      initialPrefs: {
+        companion: stateRef.current.companion,
+        duration: chosenDuration,
+        budget: stateRef.current.budget,
+        theme: geoSummary.dominantTheme,
+      },
+    });
+  }, [runChatSubmission, showToast]);
+
   const planForSeason = useCallback(
     (targetTheme: ThemeType, headline: string, subheadline: string, milestone: string) => {
       openPlannerDirectlyWithTheme(
@@ -1592,7 +2017,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLanguage,
         toastMessage,
         toastVisible,
+        toastAction,
         showToast,
+        backpackItems,
+        isBackpackOpen,
+        backpackPulseTick,
+        backpackAiInsights,
+        isBackpackAiLoading,
+        openBackpackDrawer,
+        closeBackpackDrawer,
+        isInBackpack,
+        toggleBackpackItem,
+        addBackpackItem,
+        removeBackpackItem,
+        moveBackpackItem,
+        clearBackpack,
+        openCanvasFromBackpack,
+        askBackpackAi,
+        optimizeBackpackWithAi,
+        clearBackpackAiInsights,
         cultureFocusActive,
         triggerIndigenousCultureHighlight,
         bentoPosts,

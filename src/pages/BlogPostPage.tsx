@@ -1,18 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { BackpackToggleButton } from '../components/backpack/BackpackIcon';
 import { Footer } from '../components/layout/Footer';
 import { Header } from '../components/layout/Header';
 import { useAppContext } from '../context/AppContext';
 import { cmsApi } from '../services/cmsApi';
 import { CmsPostPublic } from '../types';
+import { buildBackpackItemFromPost } from '../utils/backpackHelpers';
 
 export const BlogPostPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { lang, bentoPosts, storyPosts, planForTopic } = useAppContext();
+  const {
+    lang,
+    bentoPosts,
+    storyPosts,
+    backpackItems,
+    isInBackpack,
+    addBackpackItem,
+    openBackpackDrawer,
+    askBackpackAi,
+  } = useAppContext();
 
   const isPreview = searchParams.get('preview') === '1';
   const unsavedState = (location.state as { unsavedPreviewPost?: CmsPostPublic } | null)
@@ -91,12 +102,21 @@ export const BlogPostPage: React.FC = () => {
     return DOMPurify.sanitize(html);
   }, [post]);
 
-  const handlePlanExperience = () => {
-    if (!post) return;
-    navigate('/');
+  const postBackpackItem = useMemo(() => (post ? buildBackpackItemFromPost(post) : null), [post]);
+  const isPostPacked = postBackpackItem ? isInBackpack(postBackpackItem.id) : false;
+
+  const handleAskAiAboutPost = () => {
+    if (!post || !postBackpackItem) return;
+    if (!isInBackpack(postBackpackItem.id)) {
+      addBackpackItem(postBackpackItem);
+    }
+    openBackpackDrawer();
+    const q = isEn
+      ? `What are the ticket prices, best visiting hours, and transport tips for ${postBackpackItem.title}?`
+      : `Cho mình hỏi giá vé, giờ mở cửa đẹp nhất và cách di chuyển tới ${postBackpackItem.title}?`;
     window.setTimeout(() => {
-      planForTopic(post.themeKey, post.title);
-    }, 100);
+      void askBackpackAi('custom', q);
+    }, 60);
   };
 
   const sectionHash = post?.section === 'stories' ? 'red-earth-stories' : 'bento-overview';
@@ -238,6 +258,14 @@ export const BlogPostPage: React.FC = () => {
                     )}
                   </span>
                 </div>
+
+                {postBackpackItem && (
+                  <BackpackToggleButton
+                    item={postBackpackItem}
+                    variant="inline-pill"
+                    className="!py-1.5 !px-3 !text-xs"
+                  />
+                )}
               </div>
             </header>
 
@@ -291,31 +319,49 @@ export const BlogPostPage: React.FC = () => {
               </section>
             )}
 
-            {/* Itinerary Planner Callout */}
-            <section className="rounded-3xl bg-[#132A1E] text-[#F7F3EB] p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-lg">
-              <div className="space-y-1.5 max-w-xl">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-[#D48C46]">
-                  {isEn ? 'Tailor Your Journey' : 'Kết Nối Hành Trình'}
-                </span>
-                <h3 className="font-serif text-2xl sm:text-3xl font-bold">
-                  {isEn
-                    ? 'Want to experience this story in person?'
-                    : 'Bạn muốn đưa trải nghiệm này vào chuyến đi Đắk Lắk?'}
-                </h3>
-                <p className="text-xs sm:text-sm text-stone-300">
-                  {isEn
-                    ? 'Generate an interactive day-by-day route and budget right inside our AI Itinerary Planner.'
-                    : 'Tạo ngay lịch trình tương tác theo ngày, bản đồ và dự toán chi phí cùng Trợ lý AI.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handlePlanExperience}
-                className="shrink-0 px-5 py-3 rounded-xl bg-[#D48C46] hover:bg-[#c57d36] text-[#132A1E] text-xs sm:text-sm font-bold shadow-md transition-colors"
-              >
-                {isEn ? '+ Add to my itinerary' : '+ Thêm vào lịch trình'}
-              </button>
-            </section>
+            {/* Trip Backpack Callout */}
+            {postBackpackItem && (
+              <section className="rounded-3xl bg-[#132A1E] text-[#F7F3EB] p-6 sm:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 shadow-lg">
+                <div className="space-y-1.5 max-w-xl">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#D48C46]">
+                    {isEn ? 'Save to Trip Backpack' : 'Lưu Vào Balo Hành Trình'}
+                  </span>
+                  <h3 className="font-serif text-2xl sm:text-3xl font-bold">
+                    {isEn
+                      ? 'Want to visit this spot on your Đắk Lắk trip?'
+                      : 'Bạn muốn ghé trải nghiệm điểm này trong chuyến đi?'}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-stone-300">
+                    {isEn
+                      ? 'Pack it into your Backpack and keep reading. Later, map your picks yourself or ask AI for ticket prices, transport, and route optimization.'
+                      : 'Lưu nhanh vào Balo mà không cần rời trang. Khi thu thập đủ điểm thích, bạn có thể tự xem bản đồ hoặc nhờ AI tính chi phí, phương tiện và sắp lịch tối ưu.'}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <BackpackToggleButton item={postBackpackItem} variant="banner-cta" />
+                  {isPostPacked && (
+                    <button
+                      type="button"
+                      onClick={openBackpackDrawer}
+                      className="px-4 py-3 rounded-xl bg-white/12 hover:bg-white/20 border border-white/25 text-[#F7F3EB] text-xs sm:text-sm font-bold transition-colors cursor-pointer"
+                    >
+                      {isEn
+                        ? `Open Backpack (${backpackItems.length}) →`
+                        : `Mở Balo (${backpackItems.length}) →`}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleAskAiAboutPost}
+                    className="inline-flex items-center gap-1.5 px-4 py-3 rounded-xl bg-white/8 hover:bg-white/15 border border-white/15 text-stone-200 hover:text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                  >
+                    <i className="fa-solid fa-wand-magic-sparkles text-[#D48C46] text-xs" aria-hidden="true" />
+                    <span>{isEn ? 'Ask AI tips' : 'Hỏi AI giá vé & cách đi'}</span>
+                  </button>
+                </div>
+              </section>
+            )}
 
             {/* Related Posts */}
             {related.length > 0 && (

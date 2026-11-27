@@ -1,16 +1,20 @@
 import React from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { AiChatPopup } from './components/ai/AiChatPopup';
+import { FloatingBackpackFab } from './components/backpack/FloatingBackpackFab';
+import { TripBackpackDrawer } from './components/backpack/TripBackpackDrawer';
 import { BentoOverview } from './components/landing/BentoOverview';
-import { DesignSystemDrawer } from './components/layout/DesignSystemDrawer';
 import { EditorialModal } from './components/landing/EditorialModal';
-import { Footer } from './components/layout/Footer';
 import { FourSeasons } from './components/landing/FourSeasons';
-import { Header } from './components/layout/Header';
 import { HeroSection } from './components/landing/HeroSection';
-import { ItineraryPlanner } from './components/planner/ItineraryPlanner';
 import { RedEarthStories } from './components/landing/RedEarthStories';
+import { DesignSystemDrawer } from './components/layout/DesignSystemDrawer';
+import { Footer } from './components/layout/Footer';
+import { Header } from './components/layout/Header';
 import { ToastNotification } from './components/layout/ToastNotification';
-import { AppProvider } from './context/AppContext';
+import { ItineraryCanvasModal } from './components/planner/ItineraryCanvasModal';
+import { ItineraryPlanner } from './components/planner/ItineraryPlanner';
+import { AppProvider, useAppContext } from './context/AppContext';
 import { BlogPostPage } from './pages/BlogPostPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -32,6 +36,23 @@ const HomePage: React.FC = () => (
   </>
 );
 
+const GlobalOverlays: React.FC = () => {
+  const { isSubmitted } = useAppContext();
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
+
+  return (
+    <>
+      {!isAdmin && <FloatingBackpackFab />}
+      {!isAdmin && <TripBackpackDrawer />}
+      {!isAdmin && isSubmitted && <ItineraryCanvasModal />}
+      {!isAdmin && isSubmitted && <AiChatPopup />}
+      <EditorialModal />
+      <DesignSystemDrawer />
+    </>
+  );
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -48,8 +69,7 @@ export const App: React.FC = () => {
             <Route path="users" element={<AdminUsersPage />} />
           </Route>
         </Routes>
-        <EditorialModal />
-        <DesignSystemDrawer />
+        <GlobalOverlays />
       </AppProvider>
     </BrowserRouter>
   );
