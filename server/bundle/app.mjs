@@ -21140,9 +21140,26 @@ async function runPhase4Purpose(intake, capacityPlan, budgetResult, options) {
       })
     },
     async () => {
-      const initialRanked = budgetResult.feasiblePlaces.map(
-        (place) => scorePlaceDeterministically(place, intake, capacityPlan, options?.lang || "vi")
-      );
+      const pinnedNormalized = (options?.pinnedPlaces || []).map((p) => p.trim().toLowerCase()).filter((p) => p.length >= 2);
+      const isPinnedPlace = (place) => {
+        if (pinnedNormalized.length === 0) return false;
+        const t = place.title.toLowerCase();
+        return pinnedNormalized.some((pin) => t === pin || t.includes(pin) || pin.includes(t));
+      };
+      const initialRanked = budgetResult.feasiblePlaces.map((place) => {
+        const base = scorePlaceDeterministically(place, intake, capacityPlan, options?.lang || "vi");
+        if (isPinnedPlace(place)) {
+          return {
+            ...base,
+            score: base.score + 120,
+            matchReasons: [
+              options?.lang === "en" ? "Saved in user Trip Backpack (must-include)" : "\u0110i\u1EC3m \u0111\u1EBFn ng\u01B0\u1EDDi d\xF9ng \u0111\xE3 l\u01B0u trong Balo H\xE0nh Tr\xECnh (\u01B0u ti\xEAn gi\u1EEF)",
+              ...base.matchReasons
+            ]
+          };
+        }
+        return base;
+      });
       const { scored, usedDecisionsApi } = await applyGeminiDecisionsBatchScoring(
         initialRanked,
         intake,
@@ -21154,7 +21171,11 @@ async function runPhase4Purpose(intake, capacityPlan, budgetResult, options) {
         return a.estimatedSpendVnd - b.estimatedSpendVnd;
       });
       const outerClusterScores = /* @__PURE__ */ new Map();
+      const pinnedClusters = /* @__PURE__ */ new Set();
       for (const item of scored) {
+        if (isPinnedPlace(item)) {
+          pinnedClusters.add(item.areaCluster);
+        }
         if (item.areaCluster !== "BMT" && item.areaCluster !== "Ea Kao") {
           const prev = outerClusterScores.get(item.areaCluster) || 0;
           if (item.score > prev) outerClusterScores.set(item.areaCluster, item.score);
@@ -21165,6 +21186,7 @@ async function runPhase4Purpose(intake, capacityPlan, budgetResult, options) {
       const allowedClusters = /* @__PURE__ */ new Set([
         "BMT",
         "Ea Kao",
+        ...pinnedClusters,
         ...rankedOuterClusters.slice(0, maxOuterClusters)
       ]);
       const selectedPlaces = [];
@@ -21172,9 +21194,10 @@ async function runPhase4Purpose(intake, capacityPlan, budgetResult, options) {
       let remainingActivityBudget = budgetResult.availableActivityBudgetVnd;
       for (const item of scored) {
         const groupCost = item.estimatedSpendVnd * capacityPlan.travelersCount;
-        if (selectedPlaces.length < capacityPlan.maxStopsTotal && allowedClusters.has(item.areaCluster) && groupCost <= remainingActivityBudget) {
+        const pinned = isPinnedPlace(item);
+        if (selectedPlaces.length < capacityPlan.maxStopsTotal && allowedClusters.has(item.areaCluster) && (pinned || groupCost <= remainingActivityBudget)) {
           selectedPlaces.push(item);
-          remainingActivityBudget -= groupCost;
+          remainingActivityBudget = Math.max(0, remainingActivityBudget - groupCost);
         } else {
           backupPlaces.push(item);
         }
@@ -22208,6 +22231,7 @@ function createDakLakLangGraphTools(context2) {
             budgetResult,
             {
               lang: effectiveReq.lang,
+              pinnedPlaces: effectiveReq.backpackItems?.map((b) => b.title).filter(Boolean),
               fetchFn: opts?.fetchFn
             }
           );
@@ -23292,6 +23316,32 @@ function sanitizeCurrentExpenses(raw) {
   }
   return items.length > 0 ? items : void 0;
 }
+function sanitizeBackpackItems(raw) {
+  if (!Array.isArray(raw)) {
+    return void 0;
+  }
+  const items = [];
+  for (const entry of raw.slice(0, 15)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const item = entry;
+    const title = typeof item.title === "string" ? item.title.trim().slice(0, 120) : "";
+    if (!title) continue;
+    const location = typeof item.location === "string" ? item.location.trim().slice(0, 120) : "\u0110\u1EAFk L\u1EAFk";
+    const themeKey = asTheme(item.themeKey);
+    const category = typeof item.category === "string" ? item.category.trim().slice(0, 80) : void 0;
+    const areaCluster = typeof item.areaCluster === "string" ? item.areaCluster.trim().slice(0, 80) : void 0;
+    const seasonHint = typeof item.seasonHint === "string" ? item.seasonHint.trim().slice(0, 80) : void 0;
+    items.push({
+      title,
+      location,
+      themeKey,
+      ...category ? { category } : {},
+      ...areaCluster ? { areaCluster } : {},
+      ...seasonHint ? { seasonHint } : {}
+    });
+  }
+  return items.length > 0 ? items : void 0;
+}
 aiRouter.get("/status", (_req, res) => {
   res.json({
     configured: Boolean(getGeminiApiKey()),
@@ -23344,6 +23394,7 @@ aiRouter.post("/chat", async (req, res) => {
     })) : [];
     const draftIntake = sanitizeDraftIntake(body.draftIntake);
     const currentExpenses = sanitizeCurrentExpenses(body.currentExpenses);
+    const backpackItems = sanitizeBackpackItems(body.backpackItems);
     const chatRequest = {
       message,
       lang,
@@ -23358,7 +23409,8 @@ aiRouter.post("/chat", async (req, res) => {
       history,
       ...sessionId ? { sessionId } : {},
       ...draftIntake ? { draftIntake } : {},
-      ...currentExpenses ? { currentExpenses } : {}
+      ...currentExpenses ? { currentExpenses } : {},
+      ...backpackItems ? { backpackItems } : {}
     };
     const result = await handleAiChat(chatRequest);
     res.json(result);

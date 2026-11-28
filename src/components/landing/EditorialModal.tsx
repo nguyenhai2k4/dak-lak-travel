@@ -1,16 +1,26 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
+import { buildBackpackItemFromPost } from '../../utils/backpackHelpers';
+import { BackpackToggleButton } from '../backpack/BackpackIcon';
 
 export const EditorialModal: React.FC = () => {
-  const { lang, modalArticle, closeArticleModal, addModalTopicToPlanner } = useAppContext();
+  const {
+    lang,
+    modalArticle,
+    closeArticleModal,
+    backpackItems,
+    isInBackpack,
+    openBackpackDrawer,
+  } = useAppContext();
   const navigate = useNavigate();
-  const location = useLocation();
 
   if (!modalArticle) return null;
 
   const isEn = lang === 'en';
   const canOpenFullPage = Boolean(modalArticle.slug || modalArticle.unsavedPreviewPost);
+  const backpackItem = buildBackpackItemFromPost(modalArticle);
+  const packed = isInBackpack(backpackItem.id);
 
   const handleReadFullArticle = () => {
     const slug = modalArticle.slug;
@@ -27,18 +37,9 @@ export const EditorialModal: React.FC = () => {
     }
   };
 
-  const handleAddToPlanner = () => {
-    const needHomeRedirect = location.pathname !== '/';
-    addModalTopicToPlanner();
-    if (needHomeRedirect) {
-      navigate('/');
-      window.setTimeout(() => {
-        document.getElementById('itinerary-planner')?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        });
-      }, 120);
-    }
+  const handleOpenBackpack = () => {
+    closeArticleModal();
+    openBackpackDrawer();
   };
 
   return (
@@ -76,7 +77,7 @@ export const EditorialModal: React.FC = () => {
               type="button"
               onClick={closeArticleModal}
               aria-label={isEn ? 'Close preview' : 'Đóng bài viết'}
-              className="w-9 h-9 rounded-xl bg-white/85 hover:bg-white border border-[#E5DEC9] text-[#132A1E] font-bold flex items-center justify-center transition-colors"
+              className="w-9 h-9 rounded-xl bg-white/85 hover:bg-white border border-[#E5DEC9] text-[#132A1E] font-bold flex items-center justify-center transition-colors cursor-pointer"
             >
               ✕
             </button>
@@ -170,26 +171,31 @@ export const EditorialModal: React.FC = () => {
               <button
                 type="button"
                 onClick={closeArticleModal}
-                className="px-4 py-2.5 rounded-xl border border-stone-300 text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 transition-colors"
+                className="px-4 py-2.5 rounded-xl border border-stone-300 text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
               >
                 {isEn ? 'Close' : 'Đóng'}
               </button>
-              <button
-                type="button"
-                onClick={handleAddToPlanner}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#132A1E]/25 bg-[#F7F3EB] hover:bg-[#EFE6D5] text-[#132A1E] text-xs sm:text-sm font-semibold transition-colors"
-              >
-                <span>
-                  {isEn ? '+ Add to my itinerary' : '+ Thêm vào lịch trình'}
-                </span>
-              </button>
+              <BackpackToggleButton item={backpackItem} variant="inline-pill" />
+              {packed && (
+                <button
+                  type="button"
+                  onClick={handleOpenBackpack}
+                  className="inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-[#8C3B2B] hover:bg-[#F7F3EB] transition-colors cursor-pointer"
+                >
+                  <span>
+                    {isEn
+                      ? `Open Backpack (${backpackItems.length}) →`
+                      : `Mở Balo (${backpackItems.length}) →`}
+                  </span>
+                </button>
+              )}
             </div>
 
             {canOpenFullPage && (
               <button
                 type="button"
                 onClick={handleReadFullArticle}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#132A1E] hover:bg-[#8C3B2B] text-[#F7F3EB] text-xs sm:text-sm font-bold shadow-sm transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#132A1E] hover:bg-[#8C3B2B] text-[#F7F3EB] text-xs sm:text-sm font-bold shadow-sm transition-colors cursor-pointer"
               >
                 <span>{isEn ? 'Read full blog post' : 'Đọc toàn bộ bài viết'}</span>
                 <span aria-hidden="true">→</span>

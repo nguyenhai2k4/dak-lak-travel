@@ -2,16 +2,33 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { i18nDict } from '../../data/i18n';
+import { BackpackIcon } from '../backpack/BackpackIcon';
 
 export const Header: React.FC = () => {
-  const { lang, setLanguage, triggerIndigenousCultureHighlight } = useAppContext();
+  const {
+    lang,
+    setLanguage,
+    triggerIndigenousCultureHighlight,
+    backpackItems,
+    backpackPulseTick,
+    openBackpackDrawer,
+  } = useAppContext();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [badgePulsing, setBadgePulsing] = useState(false);
   const t = i18nDict[lang];
   const location = useLocation();
   const navigate = useNavigate();
 
   const isHome = location.pathname === '/';
+  const backpackCount = backpackItems.length;
+
+  useEffect(() => {
+    if (backpackPulseTick === 0) return;
+    setBadgePulsing(true);
+    const timer = window.setTimeout(() => setBadgePulsing(false), 360);
+    return () => window.clearTimeout(timer);
+  }, [backpackPulseTick]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24 || !isHome);
@@ -106,7 +123,7 @@ export const Header: React.FC = () => {
           </button>
         </nav>
 
-        {/* Bên phải: Bộ chuyển ngôn ngữ (VN / EN) + CTA "Thiết kế lịch trình" */}
+        {/* Bên phải: Ngôn ngữ (VN / EN) + Balo Hành Trình + CTA "Thiết kế lịch trình" */}
         <div className="flex items-center gap-2 sm:gap-2.5">
           <div
             role="group"
@@ -137,13 +154,41 @@ export const Header: React.FC = () => {
             </button>
           </div>
 
+          {/* Trip Backpack Trigger */}
+          <button
+            type="button"
+            id="header-backpack-btn"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              openBackpackDrawer();
+            }}
+            aria-label={`${t.navBackpackLabel} (${backpackCount})`}
+            title={t.navBackpackLabel}
+            className={`relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-full border transition-all cursor-pointer ${
+              backpackCount > 0
+                ? 'bg-white/15 border-[#D48C46]/70 text-[#F7F3EB] hover:bg-white/22'
+                : 'bg-white/10 border-white/15 text-white/90 hover:bg-white/18 hover:border-white/30'
+            } ${badgePulsing ? 'scale-110 ring-2 ring-[#D48C46]/60' : 'scale-100'}`}
+          >
+            <BackpackIcon
+              className={`w-4 h-4 ${backpackCount > 0 ? 'text-[#D48C46]' : 'text-white'}`}
+              filled={backpackCount > 0}
+            />
+            <span className="hidden xl:inline text-xs font-semibold">{t.navBackpackLabel}</span>
+            {backpackCount > 0 && (
+              <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#D48C46] text-[#132A1E] font-mono text-[10px] font-bold flex items-center justify-center leading-none">
+                {backpackCount}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => goToSection('itinerary-planner')}
-            className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-[#D48C46] hover:bg-[#c27a35] text-[#132A1E] text-xs sm:text-sm font-bold shadow-md shadow-black/20 transition-all"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-[#D48C46] hover:bg-[#c27a35] text-[#132A1E] text-xs sm:text-sm font-bold shadow-md shadow-black/20 transition-all"
           >
             <span>{t.navPlanCta}</span>
-            <span className="hidden sm:inline" aria-hidden="true">
+            <span className="hidden md:inline" aria-hidden="true">
               →
             </span>
           </button>

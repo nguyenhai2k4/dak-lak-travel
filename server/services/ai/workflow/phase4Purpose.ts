@@ -15,6 +15,7 @@ import { queryRelevantPublishedPosts } from '../../cms/postsService.ts';
 
 export interface Phase4PurposeOptions {
   lang?: Language;
+  pinnedPlaces?: string[];
   queryPostsFn?: (params: {
     lang: Language;
     themeKey?: IntakeState['mainPurpose'];
@@ -270,9 +271,31 @@ export async function runPhase4Purpose(
       }),
     },
     async () => {
-      const initialRanked = budgetResult.feasiblePlaces.map((place) =>
-        scorePlaceDeterministically(place, intake, capacityPlan, options?.lang || 'vi')
-      );
+      const pinnedNormalized = (options?.pinnedPlaces || [])
+        .map((p) => p.trim().toLowerCase())
+        .filter((p) => p.length >= 2);
+      const isPinnedPlace = (place: PricedPlaceItem): boolean => {
+        if (pinnedNormalized.length === 0) return false;
+        const t = place.title.toLowerCase();
+        return pinnedNormalized.some((pin) => t === pin || t.includes(pin) || pin.includes(t));
+      };
+
+      const initialRanked = budgetResult.feasiblePlaces.map((place) => {
+        const base = scorePlaceDeterministically(place, intake, capacityPlan, options?.lang || 'vi');
+        if (isPinnedPlace(place)) {
+          return {
+            ...base,
+            score: base.score + 120,
+            matchReasons: [
+              options?.lang === 'en'
+                ? 'Saved in user Trip Backpack (must-include)'
+                : 'Điểm đến người dùng đã lưu trong Balo Hành Trình (ưu tiên giữ)',
+              ...base.matchReasons,
+            ],
+          };
+        }
+        return base;
+      });
 
       const { scored, usedDecisionsApi } = await applyGeminiDecisionsBatchScoring(
         initialRanked,
@@ -286,9 +309,14 @@ export async function runPhase4Purpose(
         return a.estimatedSpendVnd - b.estimatedSpendVnd;
       });
 
-      // Pick coherent areaClusters so a short 2-day trip stays under 120 km/day without zigzagging
+      // Pick coherent areaClusters so a short 2-day trip stays under 120 km/day without zigzagging,
+      // while always allowing clusters explicitly pinned in the user's Trip Backpack.
       const outerClusterScores = new Map<string, number>();
+      const pinnedClusters = new Set<string>();
       for (const item of scored) {
+        if (isPinnedPlace(item)) {
+          pinnedClusters.add(item.areaCluster);
+        }
         if (item.areaCluster !== 'BMT' && item.areaCluster !== 'Ea Kao') {
           const prev = outerClusterScores.get(item.areaCluster) || 0;
           if (item.score > prev) outerClusterScores.set(item.areaCluster, item.score);
@@ -302,6 +330,7 @@ export async function runPhase4Purpose(
       const allowedClusters = new Set<string>([
         'BMT',
         'Ea Kao',
+        ...pinnedClusters,
         ...rankedOuterClusters.slice(0, maxOuterClusters),
       ]);
 
@@ -309,16 +338,17 @@ export async function runPhase4Purpose(
       const backupPlaces: RankedPlaceItem[] = [];
       let remainingActivityBudget = budgetResult.availableActivityBudgetVnd;
 
-      // Pass 1: cluster-coherent picks within stop cap & activity budget
+      // Pass 1: cluster-coherent picks within stop cap & activity budget (pinned stops are sorted first)
       for (const item of scored) {
         const groupCost = item.estimatedSpendVnd * capacityPlan.travelersCount;
+        const pinned = isPinnedPlace(item);
         if (
           selectedPlaces.length < capacityPlan.maxStopsTotal &&
           allowedClusters.has(item.areaCluster) &&
-          groupCost <= remainingActivityBudget
+          (pinned || groupCost <= remainingActivityBudget)
         ) {
           selectedPlaces.push(item);
-          remainingActivityBudget -= groupCost;
+          remainingActivityBudget = Math.max(0, remainingActivityBudget - groupCost);
         } else {
           backupPlaces.push(item);
         }

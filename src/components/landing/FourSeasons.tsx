@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppContext } from '../../context/AppContext';
 import { i18nDict } from '../../data/i18n';
 import { seasonsData } from '../../data/seasons';
+import { buildBackpackItemFromSeason } from '../../utils/backpackHelpers';
 import {
   buildSeasonYoutubeUrl,
   canEmbedYoutubeSafely,
@@ -10,9 +11,11 @@ import {
   suppressYoutubeCaptions,
   YTPlayerInstance,
 } from '../../utils/youtube';
+import { BackpackIcon } from '../backpack/BackpackIcon';
 
 export const FourSeasons: React.FC = () => {
-  const { lang, planForSeason } = useAppContext();
+  const { lang, isInBackpack, toggleBackpackItem, openBackpackDrawer, backpackItems } =
+    useAppContext();
   const t = i18nDict[lang];
 
   const [activeSeasonIdx, setActiveSeasonIdx] = useState(0);
@@ -443,22 +446,47 @@ export const FourSeasons: React.FC = () => {
 
               <p className="text-sm text-stone-700 leading-relaxed">{currentSeason.description}</p>
 
-              <div className="pt-3 border-t border-stone-200/70 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    planForSeason(
-                      currentSeason.plannerTheme,
-                      currentSeason.headline,
-                      currentSeason.subheadline,
-                      currentSeason.milestone
-                    )
-                  }
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#132A1E] hover:bg-[#8C3B2B] text-[#F7F3EB] text-xs sm:text-sm font-bold transition-colors group"
-                >
-                  <span>{currentSeason.cta}</span>
-                  <span className="transition-transform group-hover:translate-x-1">→</span>
-                </button>
+              <div className="pt-3 border-t border-stone-200/70 flex flex-wrap items-center justify-between gap-3">
+                {(() => {
+                  const seasonItem = buildBackpackItemFromSeason(currentSeason);
+                  const seasonPacked = isInBackpack(seasonItem.id);
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => toggleBackpackItem(seasonItem)}
+                        aria-pressed={seasonPacked}
+                        className={`inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold transition-colors group cursor-pointer ${
+                          seasonPacked
+                            ? 'bg-[#D48C46] hover:bg-[#c57d36] text-[#132A1E]'
+                            : 'bg-[#132A1E] hover:bg-[#8C3B2B] text-[#F7F3EB]'
+                        }`}
+                      >
+                        <BackpackIcon className="w-4 h-4 shrink-0" filled={seasonPacked} />
+                        <span>
+                          {seasonPacked
+                            ? lang === 'en'
+                              ? '✓ Saved Season in Backpack'
+                              : '✓ Đã lưu mùa này vào Balo'
+                            : lang === 'en'
+                              ? `Pack ${currentSeason.headline} Highlights`
+                              : `Lưu gợi ý ${currentSeason.headline} vào Balo`}
+                        </span>
+                      </button>
+                      {seasonPacked && (
+                        <button
+                          type="button"
+                          onClick={openBackpackDrawer}
+                          className="text-xs font-bold text-[#8C3B2B] hover:text-[#132A1E] transition-colors cursor-pointer"
+                        >
+                          {lang === 'en'
+                            ? `Open Backpack (${backpackItems.length}) →`
+                            : `Mở Balo (${backpackItems.length}) →`}
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

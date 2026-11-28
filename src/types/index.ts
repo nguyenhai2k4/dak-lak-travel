@@ -434,6 +434,44 @@ export interface AiChatHistoryItem {
   reply: string;
 }
 
+export interface BackpackItem {
+  id: string;
+  title: string;
+  location: string;
+  themeKey: ThemeType;
+  category: string;
+  image: string;
+  desc?: string;
+  duration?: string;
+  rating?: string;
+  reviews?: string;
+  lat?: number;
+  lng?: number;
+  x?: number;
+  y?: number;
+  googleMapsQuery?: string;
+  areaCluster: string;
+  sourceType: 'place' | 'post' | 'season';
+  sourcePostSlug?: string;
+  seasonHint?: string;
+  addedAt: number;
+}
+
+export interface BackpackAiInsight {
+  id: string;
+  action: 'pricing' | 'transport' | 'custom';
+  prompt: string;
+  reply: string;
+  citations?: AiCitation[];
+  provider?: string;
+  createdAt: number;
+}
+
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface AiChatRequest {
   message: string;
   lang: Language;
@@ -453,6 +491,14 @@ export interface AiChatRequest {
   history?: AiChatHistoryItem[];
   draftIntake?: Partial<IntakeState>;
   currentExpenses?: Array<{ title: string; cat: ExpenseCategory; amount: number }>;
+  backpackItems?: Array<{
+    title: string;
+    location: string;
+    themeKey: ThemeType;
+    category?: string;
+    areaCluster?: string;
+    seasonHint?: string;
+  }>;
 }
 
 export interface AiChatResponse {

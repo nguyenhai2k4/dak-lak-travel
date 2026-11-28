@@ -7,6 +7,19 @@ export interface I18nStrings {
   navStories: string;
   navSeasons: string;
   navPlanCta: string;
+  navBackpackLabel: string;
+  backpackTitle: string;
+  backpackSubtitle: string;
+  backpackAdd: string;
+  backpackAdded: string;
+  backpackOpenBtn: string;
+  backpackEmptyTitle: string;
+  backpackEmptyDesc: string;
+  backpackManualCta: string;
+  backpackAiSectionTitle: string;
+  backpackAiOptimize: string;
+  backpackAiPricing: string;
+  backpackAiTransport: string;
   heroSub1: string;
   heroSub2: string;
   heroCtaPrimary: string;
@@ -30,6 +43,20 @@ export const i18nDict: Record<Language, I18nStrings> = {
     navStories: 'Chuyện đất đỏ',
     navSeasons: 'Cẩm nang 4 mùa',
     navPlanCta: 'Thiết kế lịch trình',
+    navBackpackLabel: 'Balo hành trình',
+    backpackTitle: 'Balo Hành Trình',
+    backpackSubtitle: 'Lưu các điểm đến yêu thích khi đọc bài, tự sắp xếp hoặc nhờ AI hỗ trợ khi cần.',
+    backpackAdd: 'Bỏ vào Balo',
+    backpackAdded: 'Đã có trong Balo',
+    backpackOpenBtn: 'Mở Balo',
+    backpackEmptyTitle: 'Balo của bạn chưa có điểm đến nào',
+    backpackEmptyDesc:
+      'Bấm biểu tượng Balo trên bất kỳ bài viết hay địa điểm nào để lưu lại mà không bị gián đoạn việc đọc.',
+    backpackManualCta: 'Mở bản đồ & Tự sắp xếp',
+    backpackAiSectionTitle: 'Cần AI hỗ trợ thêm? (Tùy chọn)',
+    backpackAiOptimize: 'Tối ưu thành lịch trình theo ngày',
+    backpackAiPricing: 'Ước tính chi phí & giá vé',
+    backpackAiTransport: 'Phương tiện & cung đường',
     heroSub1: 'Nơi hạt cà phê đánh thức đại ngàn',
     heroSub2: 'Nơi văn hóa mẫu hệ giữ nhịp thời gian',
     heroCtaPrimary: 'Bắt đầu hành trình đại ngàn',
@@ -53,6 +80,20 @@ export const i18nDict: Record<Language, I18nStrings> = {
     navStories: 'Red Earth Stories',
     navSeasons: '4-Season Guide',
     navPlanCta: 'Plan Itinerary',
+    navBackpackLabel: 'Trip Backpack',
+    backpackTitle: 'Your Trip Backpack',
+    backpackSubtitle: 'Collect places while reading, map them yourself, or ask AI whenever you need.',
+    backpackAdd: 'Pack to Backpack',
+    backpackAdded: 'In Your Backpack',
+    backpackOpenBtn: 'Open Backpack',
+    backpackEmptyTitle: 'Your backpack is empty',
+    backpackEmptyDesc:
+      'Tap the backpack icon on any destination card or story to save places without leaving what you are reading.',
+    backpackManualCta: 'Open on Map & Schedule',
+    backpackAiSectionTitle: 'Need AI assistance? (Optional)',
+    backpackAiOptimize: 'Optimize into Day-by-Day Trip',
+    backpackAiPricing: 'Estimate Prices & Tickets',
+    backpackAiTransport: 'Transport & Route Options',
     heroSub1: 'Where coffee beans awaken the great forest',
     heroSub2: 'Where matriarchal heritage keeps the rhythm of time',
     heroCtaPrimary: 'Begin Your Highland Journey',
